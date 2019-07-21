@@ -1,0 +1,8 @@
+[package]
+name = "couchbase-lite-c"
+version = "0.1.0"
+authors = ["Jérôme Benois <jerome@benois.fr>"]
+edition = "2018"
+
+[dependencies]
+couchbase-lite-c-sys = { path = "../couchbase-lite-c-sys" }

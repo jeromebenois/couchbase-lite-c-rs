@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "couchbase-lite-c",
+    "couchbase-lite-c-sys",
+    "example",
+]
