@@ -9,18 +9,17 @@ use std::mem;
 use std::os::raw::c_void;
 use std::str;
 
-pub use document::*;
 pub use database::*;
+pub use document::*;
 pub use query::*;
-pub use resultset::*;
 pub use replicator::*;
+pub use resultset::*;
 
 mod database;
 mod document;
 mod query;
-mod resultset;
 mod replicator;
-
+mod resultset;
 
 /// Convert a native string to a Rust string
 fn to_string(pointer: *const c_char) -> String {
@@ -37,5 +36,3 @@ fn to_ptr(string: String) -> *const c_char {
     mem::forget(cs);
     ptr
 }
-
-
