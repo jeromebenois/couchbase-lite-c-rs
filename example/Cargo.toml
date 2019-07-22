@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Jérôme Benois <jerome@benois.fr>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+couchbase-lite-c = { path = "../couchbase-lite-c" }
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }

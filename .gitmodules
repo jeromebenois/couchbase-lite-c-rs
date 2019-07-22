@@ -1,0 +1,3 @@
+[submodule "couchbase-lite-c-sys/libCouchbaseLiteC"]
+	path = couchbase-lite-c-sys/libCouchbaseLiteC
+	url = https://github.com/couchbaselabs/couchbase-lite-C.git

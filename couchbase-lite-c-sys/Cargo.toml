@@ -6,12 +6,7 @@ build="build.rs"
 edition = "2018"
 
 [dependencies]
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
 
 [build-dependencies]
 cmake = "0.1.31"
 bindgen = "0.50"
-
-[build]
-rustflags = ["-Ctarget-feature=+crt-static"]

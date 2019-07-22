@@ -1,3 +1,5 @@
+target
+libCouchbaseLiteC
 .idea
 /target
 **/*.rs.bk
