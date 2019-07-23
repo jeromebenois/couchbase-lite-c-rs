@@ -247,7 +247,7 @@ mod tests {
         }
     }
 
-    //skip #[test]
+    #[test]
     fn update_existing_document_with_new_property() {
         let database = open_database();
         let doc_id = String::from("foo");

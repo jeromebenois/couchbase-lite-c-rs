@@ -54,8 +54,8 @@ impl Document {
                 buf: key_str as *const c_void,
                 size: for_key.len(),
             };
-            let fl_value = ffi::FLDict_Get(properties, key);
-            let fl_string = ffi::FLValue_AsString(fl_value);
+            //let fl_value = ffi::FLDict_Get(properties, key);
+            //let fl_string = ffi::FLValue_AsString(fl_value);
             let fl_slot = ffi::FLMutableDict_Set(properties, key);
 
             let val = ffi::FLString {

@@ -22,11 +22,11 @@ impl Replicator {
             CBLReplicatorTypePush,               ///< Pushing changes to the target
             CBLReplicatorTypePull                ///< Pulling changes from the target
             */
-            let replicatorType: ffi::CBLReplicatorType = 0;
+            let replicator_type: ffi::CBLReplicatorType = 0;
             let config = ffi::CBLReplicatorConfiguration {
                 database: database.db,
                 endpoint: endpoint,
-                replicatorType: replicatorType,
+                replicatorType: replicator_type,
                 continuous: false,
                 authenticator: MaybeUninit::zeroed().assume_init(),
                 pinnedServerCertificate: MaybeUninit::uninit().assume_init(),
