@@ -1,9 +1,9 @@
+use crate::errors::init_error;
+use crate::errors::CouchbaseLiteError;
 use crate::to_ptr;
 use crate::to_string;
 use ffi;
 use std::os::raw::c_void;
-use crate::errors::CouchbaseLiteError;
-use crate::init_error;
 
 // TODO add generic T: Serialize
 //TODO implement Deref and call unsafe { ffi:CBRelease(saved) };
@@ -33,10 +33,9 @@ impl Document {
         let json_string = to_ptr(json);
         let status = unsafe { ffi::CBLDocument_SetPropertiesAsJSON(self.doc, json_string, &mut error) };
         println!("jsonify {:?} - error: {:?}", status, error);
-        // FIXME strange error code
-        if error.code ==0 || error.code ==28672 {
+        if error.code == 0 {
             Ok(status)
-        } else{
+        } else {
             Err(CouchbaseLiteError::CannotFillDocumentFromJson(error))
         }
     }

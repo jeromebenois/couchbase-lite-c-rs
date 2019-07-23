@@ -3,10 +3,10 @@ use crate::to_string;
 use ffi;
 
 use crate::document::Document;
+use crate::errors::init_error;
 use crate::errors::CouchbaseLiteError;
 use crate::query::Query;
 use core::ptr;
-use crate::init_error;
 
 pub struct Database {
     pub db: *mut ffi::CBLDatabase,
@@ -28,8 +28,8 @@ impl Database {
             },
         };
         let db = unsafe { ffi::CBLDatabase_Open(database_name, &config, &mut error) };
-        println!("open database error: {:?}",error);
-        if error.code == 0 || error.code == 1 || error.code == 28672 {
+        println!("open database error: {:?}", error);
+        if error.code == 0 {
             Ok(Database { db: db })
         } else {
             Err(CouchbaseLiteError::CannotOpenDatabase(error))
@@ -58,7 +58,7 @@ impl Database {
         let saved: *const ffi::CBLDocument =
             unsafe { ffi::CBLDatabase_SaveDocument(self.db, document.doc, CBLConcurrencyControlFailOnConflict, &mut error) };
         println!("save document error: {:?}", error);
-        if (error.code == 0 || error.code == 1 || error.code == 28672) && saved != ptr::null() {
+        if error.code == 0 && saved != ptr::null() {
             let json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(saved) };
             let doc = unsafe { ffi::CBLDocument_MutableCopy(saved) };
             Ok(Document::from_raw(self.db, doc))
@@ -102,6 +102,8 @@ mod tests {
     use serde::{Deserialize, Serialize};
     use std::fs;
     use std::path::Path;
+    use std::thread;
+    use std::time::Duration;
     use std::time::Instant;
 
     fn test_dir() -> String {
@@ -109,9 +111,16 @@ mod tests {
         let millis: f64 = timespec.sec as f64 + (timespec.nsec as f64 / 1000.0 / 1000.0 / 1000.0);
         let dir = format!("/tmp/testdb_{}", millis);
         if Path::new(dir.clone().as_str()).exists() {
-            fs::remove_dir(dir.clone()).unwrap();
+            match fs::remove_dir(dir.clone()) {
+                Ok(_) => {}
+                Err(e) => panic!("Cannot remove database directory: {:?}", e),
+            };
+            thread::sleep(Duration::from_millis(100));
         }
-        fs::create_dir(dir.clone()).unwrap();
+        match fs::create_dir(dir.clone()) {
+            Ok(_) => {}
+            Err(e) => panic!("Cannot create database directory: {:?}", e),
+        };
         dir
     }
 

@@ -24,10 +24,6 @@ mod query;
 mod replicator;
 mod resultset;
 
-fn init_error() -> ffi::CBLError{
-    unsafe { MaybeUninit::<ffi::CBLError>::uninit().assume_init() }
-}
-
 /// Convert a native string to a Rust string
 fn to_string(pointer: *const c_char) -> String {
     let slice = unsafe { CStr::from_ptr(pointer).to_bytes() };

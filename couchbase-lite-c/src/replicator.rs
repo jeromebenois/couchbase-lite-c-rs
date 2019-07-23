@@ -3,14 +3,17 @@ use crate::to_ptr;
 use ffi;
 use std::string::ToString;
 
-use crate::init_error;
+use crate::errors::init_error;
+use crate::errors::CouchbaseLiteError;
+use std::mem::MaybeUninit;
 
 pub struct Replicator {
     replicator: *mut ffi::CBLReplicator,
 }
 
 impl Replicator {
-    pub fn new(database: Database) -> Self {
+    pub fn new(database: Database) -> Result<Self, CouchbaseLiteError> {
+        let mut error = init_error();
         let replicator = unsafe {
             // TODO extract URL
             let endpoint = unsafe { ffi::CBLEndpoint_NewWithURL(to_ptr("ws://127.0.0.1:4984/mydb".to_string())) };
@@ -25,21 +28,22 @@ impl Replicator {
                 endpoint: endpoint,
                 replicatorType: replicatorType,
                 continuous: false,
-                authenticator: std::mem::zeroed(),
-                pinnedServerCertificate: std::mem::uninitialized(),
-                headers: std::mem::uninitialized(),
-                channels: std::mem::uninitialized(),
-                documentIDs: std::mem::uninitialized(),
-                pushFilter: std::mem::uninitialized(),
-                pullFilter: std::mem::uninitialized(),
-                filterContext: std::mem::uninitialized(),
+                authenticator: MaybeUninit::zeroed().assume_init(),
+                pinnedServerCertificate: MaybeUninit::uninit().assume_init(),
+                headers: MaybeUninit::uninit().assume_init(),
+                channels: MaybeUninit::uninit().assume_init(),
+                documentIDs: MaybeUninit::uninit().assume_init(),
+                pushFilter: MaybeUninit::uninit().assume_init(),
+                pullFilter: MaybeUninit::uninit().assume_init(),
+                filterContext: MaybeUninit::uninit().assume_init(),
             };
-            let mut error = init_error();
-            let replicator = ffi::CBLReplicator_New(&config, &mut error);
-            // FIXME handle errors
-            replicator
+            ffi::CBLReplicator_New(&config, &mut error)
         };
-        Replicator { replicator: replicator }
+        if error.code == 0 {
+            Ok(Replicator { replicator: replicator })
+        } else {
+            Err(CouchbaseLiteError::CannotCreateNewReplicator(error))
+        }
     }
 
     pub fn start(&self) {

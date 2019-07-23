@@ -26,7 +26,6 @@ fn main() {
         .whitelist_function("CBLEndpoint_NewWithURL")
         .whitelist_function("CBLBlob_.*")
         .whitelist_function("CBLReplicator_.*")
-
         //.whitelist_type("CBLDocument")
         .prepend_enum_name(false)
         //.constified_enum_module("MDB_cursor_op") // allows access to enum values as MDB_cursor_op.MDB_NEXT
