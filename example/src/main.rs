@@ -16,7 +16,7 @@ pub struct Person {
 }
 
 fn main() {
-    let database = Database::open(String::from("/tmp"), "mydb");
+    let database = Database::open(String::from("/tmp"), "mydb").unwrap();
     let doc_id = String::from("foo");
     let document = match database.get_document(doc_id.clone()){
         Some(doc) => doc,
@@ -29,7 +29,7 @@ fn main() {
         last_name: "Tiger".to_string(),
     };
     document.fill(serde_json::to_string_pretty(&person).unwrap());
-    database.save_document(document);
+    database.save_document(document).unwrap();
 
     match database.get_document(doc_id.clone()){
         Some(doc) => {
@@ -44,7 +44,7 @@ fn main() {
 
             println!("================================");
             //let query = database.new_query("SELECT _id, id, prop1 AS person WHERE first_name='Scott'".to_string());
-            let query = database.new_query("SELECT _id AS id, * AS person".to_string());
+            let query = database.new_query("SELECT _id AS id, * AS person".to_string()).unwrap();
             println!("================================");
             let rs = query.execute();
             while rs.has_next() {

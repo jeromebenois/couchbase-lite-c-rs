@@ -3,6 +3,8 @@ use crate::to_ptr;
 use ffi;
 use std::string::ToString;
 
+use crate::init_error;
+
 pub struct Replicator {
     replicator: *mut ffi::CBLReplicator,
 }
@@ -32,7 +34,7 @@ impl Replicator {
                 pullFilter: std::mem::uninitialized(),
                 filterContext: std::mem::uninitialized(),
             };
-            let mut error: ffi::CBLError = std::mem::uninitialized();
+            let mut error = init_error();
             let replicator = ffi::CBLReplicator_New(&config, &mut error);
             // FIXME handle errors
             replicator

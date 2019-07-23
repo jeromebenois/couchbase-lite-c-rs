@@ -11,15 +11,22 @@ use std::str;
 
 pub use database::*;
 pub use document::*;
+pub use errors::*;
 pub use query::*;
 pub use replicator::*;
 pub use resultset::*;
+use std::mem::MaybeUninit;
 
 mod database;
 mod document;
+mod errors;
 mod query;
 mod replicator;
 mod resultset;
+
+fn init_error() -> ffi::CBLError{
+    unsafe { MaybeUninit::<ffi::CBLError>::uninit().assume_init() }
+}
 
 /// Convert a native string to a Rust string
 fn to_string(pointer: *const c_char) -> String {

@@ -3,16 +3,18 @@ use crate::to_string;
 use ffi;
 
 use crate::document::Document;
+use crate::errors::CouchbaseLiteError;
 use crate::query::Query;
 use core::ptr;
+use crate::init_error;
 
 pub struct Database {
     pub db: *mut ffi::CBLDatabase,
 }
 
 impl Database {
-    pub fn open(directory: String, name: &str) -> Self {
-        let mut error: ffi::CBLError = unsafe { std::mem::uninitialized() };
+    pub fn open(directory: String, name: &str) -> Result<Self, CouchbaseLiteError> {
+        let mut error = init_error();
         let database_name = to_ptr(name.to_string());
         let CBLDatabase_Create: ffi::CBLDatabaseFlags = 1;
         // No encryption (default)
@@ -26,9 +28,12 @@ impl Database {
             },
         };
         let db = unsafe { ffi::CBLDatabase_Open(database_name, &config, &mut error) };
-        // FIXME handle errors
-        println!("database {:?} - error: {:?}", db, error);
-        Database { db: db }
+        println!("open database error: {:?}",error);
+        if error.code == 0 || error.code == 1 || error.code == 28672 {
+            Ok(Database { db: db })
+        } else {
+            Err(CouchbaseLiteError::CannotOpenDatabase(error))
+        }
     }
 
     pub fn create_document(&self, id: String) -> Document {
@@ -47,31 +52,32 @@ impl Database {
         }
     }
 
-    pub fn save_document(&self, document: Document) -> Document {
-        let mut error: ffi::CBLError = unsafe { std::mem::uninitialized() };
+    pub fn save_document(&self, document: Document) -> Result<Document, CouchbaseLiteError> {
+        let mut error = init_error();
         let CBLConcurrencyControlFailOnConflict: ffi::CBLConcurrencyControl = 0;
         let saved: *const ffi::CBLDocument =
             unsafe { ffi::CBLDatabase_SaveDocument(self.db, document.doc, CBLConcurrencyControlFailOnConflict, &mut error) };
-        // FIXME handle errors
-        if saved != ptr::null() {
+        println!("save document error: {:?}", error);
+        if (error.code == 0 || error.code == 1 || error.code == 28672) && saved != ptr::null() {
             let json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(saved) };
             let doc = unsafe { ffi::CBLDocument_MutableCopy(saved) };
-            Document::from_raw(self.db, doc)
+            Ok(Document::from_raw(self.db, doc))
         } else {
-            // FIXME handle errors
-            println!("ERROR : Cannot saved");
-            Document::new(String::from("error..."))
+            Err(CouchbaseLiteError::CannotSaveDocument(error))
         }
     }
 
-    pub fn new_query(&self, n1ql_query: String) -> Query {
+    pub fn new_query(&self, n1ql_query: String) -> Result<Query, CouchbaseLiteError> {
         let n1ql_query_language: ffi::CBLQueryLanguage = 1;
         let query_string = to_ptr(n1ql_query);
         let mut outErrorPos: ::std::os::raw::c_int = 0;
-        let mut error: ffi::CBLError = unsafe { std::mem::uninitialized() };
+        let mut error = init_error();
         let query = unsafe { ffi::CBLQuery_New(self.db, n1ql_query_language, query_string, &mut outErrorPos, &mut error) };
-        // FIXME handle errors
-        Query { query: query }
+        if error.code == 0 {
+            Ok(Query { query: query })
+        } else {
+            Err(CouchbaseLiteError::CannotCreateNewQuery(error))
+        }
     }
 
     pub fn get_name(&self) -> String {
@@ -95,34 +101,48 @@ mod tests {
     use crate::Document;
     use serde::{Deserialize, Serialize};
     use std::fs;
+    use std::path::Path;
     use std::time::Instant;
 
     fn test_dir() -> String {
         let timespec = time::get_time();
         let millis: f64 = timespec.sec as f64 + (timespec.nsec as f64 / 1000.0 / 1000.0 / 1000.0);
         let dir = format!("/tmp/testdb_{}", millis);
+        if Path::new(dir.clone().as_str()).exists() {
+            fs::remove_dir(dir.clone()).unwrap();
+        }
         fs::create_dir(dir.clone()).unwrap();
         dir
     }
 
     #[test]
-    fn database() {
+    fn test_open_database() {
         let database_name = String::from("testdb");
         let test_dir = test_dir();
         let database = Database::open(test_dir.clone(), &database_name.clone());
+        assert_eq!(true, database.is_ok());
+        let database = database.unwrap();
         assert_eq!(database_name, database.get_name());
         assert_eq!(format!("{}/{}.cblite2/", test_dir, database_name), database.get_path());
         assert_eq!(0, database.count());
     }
 
-    #[test]
-    fn save_empty_document() {
+    fn open_database() -> Database {
         let database_name = String::from("testdb");
         let database = Database::open(test_dir(), &database_name);
+        assert_eq!(true, database.is_ok());
+        database.unwrap()
+    }
+
+    #[test]
+    fn save_empty_document() {
+        let database = open_database();
         let doc_id = String::from("foo");
         {
             let doc = Document::new(doc_id.clone());
             let saved = database.save_document(doc);
+            assert_eq!(true, saved.is_ok());
+            let saved = saved.unwrap();
             assert_eq!(doc_id, saved.id());
             assert_eq!(1, saved.sequence());
             assert_eq!("{}", saved.jsonify());
@@ -139,8 +159,7 @@ mod tests {
 
     #[test]
     fn save_document_with_property() {
-        let database_name = String::from("testdb");
-        let database = Database::open(test_dir(), &database_name);
+        let database = open_database();
         let doc_id = String::from("foo");
         {
             let doc = Document::new(doc_id.clone());
@@ -148,6 +167,8 @@ mod tests {
             assert_eq!("{\"greeting\":\"Howdy!\"}", doc.jsonify());
 
             let saved = database.save_document(doc);
+            assert_eq!(true, saved.is_ok());
+            let saved = saved.unwrap();
             assert_eq!(doc_id, saved.id());
             assert_eq!(1, saved.sequence());
             assert_eq!("{\"greeting\":\"Howdy!\"}", saved.jsonify());
@@ -174,14 +195,15 @@ mod tests {
             last_name: "Bomb".to_string(),
         };
 
-        let database_name = String::from("testdb");
-        let database = Database::open(test_dir(), &database_name);
+        let database = open_database();
         let doc_id = String::from("foo");
         let doc = Document::new(doc_id.clone());
         doc.fill(serde_json::to_string_pretty(&person).unwrap());
         assert_eq!("{\"first_name\":\"James\",\"last_name\":\"Bomb\"}", doc.jsonify());
 
         let saved = database.save_document(doc);
+        assert_eq!(true, saved.is_ok());
+        let saved = saved.unwrap();
         assert_eq!(doc_id, saved.id());
         assert_eq!(1, saved.sequence());
         assert_eq!("{\"first_name\":\"James\",\"last_name\":\"Bomb\"}", saved.jsonify());
@@ -189,8 +211,7 @@ mod tests {
 
     #[test]
     fn update_existing_document_with_existing_property() {
-        let database_name = String::from("testdb");
-        let database = Database::open(test_dir(), &database_name);
+        let database = open_database();
         let doc_id = String::from("foo");
         {
             let doc = Document::new(doc_id.clone());
@@ -198,6 +219,8 @@ mod tests {
             assert_eq!("{\"prop1\":\"val1\"}", doc.jsonify());
 
             let saved = database.save_document(doc);
+            assert_eq!(true, saved.is_ok());
+            let saved = saved.unwrap();
             assert_eq!(doc_id, saved.id());
             assert_eq!(1, saved.sequence());
             assert_eq!("{\"prop1\":\"val1\"}", saved.jsonify());
@@ -217,8 +240,7 @@ mod tests {
 
     //skip #[test]
     fn update_existing_document_with_new_property() {
-        let database_name = String::from("testdb");
-        let database = Database::open(test_dir(), &database_name);
+        let database = open_database();
         let doc_id = String::from("foo");
         {
             // Create document
@@ -227,6 +249,8 @@ mod tests {
             assert_eq!("{\"prop1\":\"val1\"}", doc.jsonify());
 
             let saved = database.save_document(doc);
+            assert_eq!(true, saved.is_ok());
+            let saved = saved.unwrap();
             assert_eq!(doc_id, saved.id());
             assert_eq!(1, saved.sequence());
             assert_eq!("{\"prop1\":\"val1\"}", saved.jsonify());

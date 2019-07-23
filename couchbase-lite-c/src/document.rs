@@ -2,7 +2,11 @@ use crate::to_ptr;
 use crate::to_string;
 use ffi;
 use std::os::raw::c_void;
+use crate::errors::CouchbaseLiteError;
+use crate::init_error;
 
+// TODO add generic T: Serialize
+//TODO implement Deref and call unsafe { ffi:CBRelease(saved) };
 pub struct Document /*<T>*/ {
     pub doc: *mut ffi::CBLDocument,
     db: Option<*mut ffi::CBLDatabase>,
@@ -16,7 +20,6 @@ impl Document {
     }
 
     pub fn from_raw(db: *mut ffi::CBLDatabase, doc: *mut ffi::CBLDocument) -> Self {
-        println!("Document::from_raw {:?}", doc);
         Document { db: Some(db), doc: doc }
     }
 
@@ -25,21 +28,23 @@ impl Document {
         to_string(doc_id)
     }
 
-    // TODO add generic T: Serialize
-    pub fn fill(&self, json: String) -> bool {
-        let mut error: ffi::CBLError = unsafe { std::mem::uninitialized() };
+    pub fn fill(&self, json: String) -> Result<bool, CouchbaseLiteError> {
+        let mut error = init_error();
         let json_string = to_ptr(json);
         let status = unsafe { ffi::CBLDocument_SetPropertiesAsJSON(self.doc, json_string, &mut error) };
         println!("jsonify {:?} - error: {:?}", status, error);
-        status
+        // FIXME strange error code
+        if error.code ==0 || error.code ==28672 {
+            Ok(status)
+        } else{
+            Err(CouchbaseLiteError::CannotFillDocumentFromJson(error))
+        }
     }
 
     pub fn jsonify(&self) -> String {
         let json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(self.doc) };
         to_string(json)
     }
-
-    //TODO implement Deref and call unsafe { ffi:CBRelease(saved) };
 
     pub fn set_value(&self, value: String, for_key: String) {
         unsafe {
@@ -62,8 +67,6 @@ impl Document {
         }
     }
 
-    // TODO add patch or update method and use Fleece JSON Delta API
-
     pub fn sequence(&self) -> u64 {
         unsafe { ffi::CBLDocument_Sequence(self.doc) }
     }
@@ -73,6 +76,7 @@ impl Document {
 mod tests {
     use crate::Database;
     use crate::Document;
+    use serde::{Deserialize, Serialize};
 
     #[test]
     fn new_document() {
@@ -96,6 +100,37 @@ mod tests {
         // Add new property
         doc.set_value(String::from("val2"), String::from("prop2"));
         assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\"}", doc.jsonify());
+    }
+
+    #[test]
+    fn fill_document_from_json_string() {
+        let doc_id = String::from("foo");
+        let doc = Document::new(doc_id);
+        let status = doc.fill(String::from("{\"prop1\":\"val1\",\"prop2\":\"val2\"}"));
+        assert_eq!(true, status.is_ok());
+        let status = status.unwrap();
+        assert_eq!(true, status);
+        assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\"}", doc.jsonify());
+    }
+
+    #[test]
+    fn fill_document_from_json_struct() {
+        #[derive(Serialize, Deserialize, Debug)]
+        pub struct Person {
+            pub first_name: String,
+            pub last_name: String,
+        }
+        let person = Person {
+            first_name: "James".to_string(),
+            last_name: "Bomb".to_string(),
+        };
+        let doc_id = String::from("foo");
+        let doc = Document::new(doc_id);
+        let status = doc.fill(serde_json::to_string_pretty(&person).unwrap());
+        assert_eq!(true, status.is_ok());
+        let status = status.unwrap();
+        assert_eq!(true, status);
+        assert_eq!("{\"first_name\":\"James\",\"last_name\":\"Bomb\"}", doc.jsonify());
     }
 
 }
