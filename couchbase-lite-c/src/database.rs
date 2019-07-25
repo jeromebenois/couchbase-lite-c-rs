@@ -118,15 +118,11 @@ mod tests {
     use std::thread;
     use std::time::Duration;
     use std::time::Instant;
+    use uuid::Uuid;
 
     fn test_dir() -> String {
-        let path = Path::new("/tmp/testdb");
-        if path.exists() {
-            //fs::remove_dir_all(path).unwrap();
-        }
-        let timespec = time::get_time();
-        let millis: f64 = timespec.sec as f64 + (timespec.nsec as f64 / 1000.0 / 1000.0 / 1000.0);
-        let dir = format!("/tmp/testdb/{}", millis);
+        let uuid = Uuid::new_v4().to_string();
+        let dir = format!("/tmp/testdb/{}", uuid);
         match fs::create_dir_all(dir.clone()) {
             Ok(_) => {}
             Err(e) => panic!("Cannot create database directory: {:?}", e),

@@ -1,5 +1,5 @@
 extern crate couchbase_lite_c_sys as ffi;
-extern crate time;
+extern crate uuid;
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
