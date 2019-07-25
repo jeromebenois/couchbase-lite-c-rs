@@ -395,7 +395,27 @@ extern "C" {
     pub fn FLValue_AsString(arg1: FLValue) -> FLString;
 }
 extern "C" {
+    #[doc = " VALUE SLOT"]
+    pub fn FLSlot_SetNull(arg1: FLSlot);
+}
+extern "C" {
+    pub fn FLSlot_SetBool(arg1: FLSlot, arg2: bool);
+}
+extern "C" {
+    pub fn FLSlot_SetInt(arg1: FLSlot, arg2: i64);
+}
+extern "C" {
     pub fn FLSlot_SetString(arg1: FLSlot, arg2: FLString);
+}
+extern "C" {
+    pub fn FLSlot_SetData(arg1: FLSlot, arg2: FLSlice);
+}
+extern "C" {
+    pub fn FLSlot_SetValue(arg1: FLSlot, arg2: FLValue);
+}
+extern "C" {
+    #[doc = " If the dictionary is mutable, returns it cast to FLMutableDict, else NULL."]
+    pub fn FLDict_AsMutable(arg1: FLDict) -> FLMutableDict;
 }
 extern "C" {
     #[doc = " Looks up a key in a dictionary, returning its value."]

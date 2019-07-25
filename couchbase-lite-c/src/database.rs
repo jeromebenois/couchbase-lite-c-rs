@@ -93,6 +93,19 @@ impl Database {
     pub fn count(&self) -> u64 {
         unsafe { ffi::CBLDatabase_Count(self.db) }
     }
+
+    pub fn in_batch(&self, unit: &Fn() -> ()) -> Result<(), CouchbaseLiteError> {
+        let mut error = init_error();
+        let status = unsafe { ffi::CBLDatabase_BeginBatch(self.db, &mut error) };
+        if error.code == 0 && status {
+            (unit)();
+            let status = unsafe { ffi::CBLDatabase_EndBatch(self.db, &mut error) };
+            if error.code == 0 && status {
+                return Ok(());
+            }
+        }
+        return Err(CouchbaseLiteError::ErrorInBatch(error));
+    }
 }
 
 #[cfg(test)]
@@ -107,17 +120,14 @@ mod tests {
     use std::time::Instant;
 
     fn test_dir() -> String {
+        let path = Path::new("/tmp/testdb");
+        if path.exists() {
+            //fs::remove_dir_all(path).unwrap();
+        }
         let timespec = time::get_time();
         let millis: f64 = timespec.sec as f64 + (timespec.nsec as f64 / 1000.0 / 1000.0 / 1000.0);
-        let dir = format!("/tmp/testdb_{}", millis);
-        if Path::new(dir.clone().as_str()).exists() {
-            match fs::remove_dir(dir.clone()) {
-                Ok(_) => {}
-                Err(e) => panic!("Cannot remove database directory: {:?}", e),
-            };
-            thread::sleep(Duration::from_millis(100));
-        }
-        match fs::create_dir(dir.clone()) {
+        let dir = format!("/tmp/testdb/{}", millis);
+        match fs::create_dir_all(dir.clone()) {
             Ok(_) => {}
             Err(e) => panic!("Cannot create database directory: {:?}", e),
         };
@@ -249,39 +259,41 @@ mod tests {
 
     #[test]
     fn update_existing_document_with_new_property() {
+        let database1 = open_database();
         let database = open_database();
         let doc_id = String::from("foo");
-        {
-            // Create document
-            let doc = Document::new(doc_id.clone());
-            doc.set_value(String::from("val1"), String::from("prop1"));
-            assert_eq!("{\"prop1\":\"val1\"}", doc.jsonify());
-
-            let saved = database.save_document(doc);
-            assert_eq!(true, saved.is_ok());
-            let saved = saved.unwrap();
-            assert_eq!(doc_id, saved.id());
-            assert_eq!(1, saved.sequence());
-            assert_eq!("{\"prop1\":\"val1\"}", saved.jsonify());
-        }
-        {
-            // Update Document
-            let doc = database.get_document(doc_id.clone());
-            assert_eq!(true, doc.is_some());
-            let doc = doc.unwrap();
-            // Add new property
-            doc.set_value(String::from("val2"), String::from("prop2"));
-            database.save_document(doc);
-        }
-        {
-            // Verify Document
-            let doc = database.get_document(doc_id.clone());
-            assert_eq!(true, doc.is_some());
-            let doc = doc.unwrap();
-            assert_eq!(doc_id, doc.id());
-            assert_eq!(2, doc.sequence());
-            assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\"}", doc.jsonify());
-        }
+        database.in_batch(&|| {
+            {
+                // Create document
+                let doc = Document::new(doc_id.clone());
+                doc.set_value(String::from("val1"), String::from("prop1"));
+                assert_eq!("{\"prop1\":\"val1\"}", doc.jsonify());
+                let saved = database.save_document(doc);
+                assert_eq!(true, saved.is_ok());
+                let saved = saved.unwrap();
+                assert_eq!(doc_id, saved.id());
+                assert_eq!(1, saved.sequence());
+                assert_eq!("{\"prop1\":\"val1\"}", saved.jsonify());
+            }
+            {
+                // Update Document
+                let doc = database.get_document(doc_id.clone());
+                assert_eq!(true, doc.is_some());
+                let doc = doc.unwrap();
+                // Add new property
+                doc.set_value(String::from("val2"), String::from("prop2"));
+                database.save_document(doc);
+            }
+            {
+                // Verify Document
+                let doc = database.get_document(doc_id.clone());
+                assert_eq!(true, doc.is_some());
+                let doc = doc.unwrap();
+                assert_eq!(doc_id, doc.id());
+                assert_eq!(2, doc.sequence());
+                assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\"}", doc.jsonify());
+            }
+        });
     }
 
 }

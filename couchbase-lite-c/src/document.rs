@@ -2,8 +2,13 @@ use crate::errors::init_error;
 use crate::errors::CouchbaseLiteError;
 use crate::to_ptr;
 use crate::to_string;
+use core::mem;
 use ffi;
 use std::os::raw::c_void;
+use std::str;
+
+use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 
 // TODO add generic T: Serialize
 //TODO implement Deref and call unsafe { ffi:CBRelease(saved) };
@@ -45,24 +50,22 @@ impl Document {
         to_string(json)
     }
 
-    pub fn set_value(&self, value: String, for_key: String) {
+    pub fn set_value(&self, value_string: String, for_key: String) {
         unsafe {
             let properties = ffi::CBLDocument_MutableProperties(self.doc);
 
-            let key_str = to_ptr(for_key.clone());
-            let key = ffi::FLString {
-                buf: key_str as *const c_void,
+            let key_slice = ffi::FLString {
+                buf: to_ptr(for_key.clone()) as *const c_void,
                 size: for_key.len(),
             };
             //let fl_value = ffi::FLDict_Get(properties, key);
             //let fl_string = ffi::FLValue_AsString(fl_value);
-            let fl_slot = ffi::FLMutableDict_Set(properties, key);
-
-            let val = ffi::FLString {
-                buf: to_ptr(value.clone()) as *const c_void,
-                size: value.len(),
+            let fl_slot = ffi::FLMutableDict_Set(properties, key_slice);
+            let value_slice = ffi::FLString {
+                buf: to_ptr(value_string.clone()) as *const c_void,
+                size: value_string.len(),
             };
-            ffi::FLSlot_SetString(fl_slot, val);
+            ffi::FLSlot_SetString(fl_slot, value_slice);
         }
     }
 

@@ -8,6 +8,7 @@ pub enum CouchbaseLiteError {
     CannotFillDocumentFromJson(ffi::CBLError),
     CannotCreateNewReplicator(ffi::CBLError),
     CannotExecuteQuery(ffi::CBLError),
+    ErrorInBatch(ffi::CBLError),
 }
 
 pub fn init_error() -> ffi::CBLError {
