@@ -50,7 +50,7 @@ fn main() {
         let out_path = PathBuf::from("src");
         bindings.write_to_file(out_path.join("bindings.rs")).expect("Couldn't write bindings!");
 
-        //let dst = Config::new("libCouchbaseLiteC").build();
+        let dst = Config::new("libCouchbaseLiteC").build();
 
         /*
         For static build
