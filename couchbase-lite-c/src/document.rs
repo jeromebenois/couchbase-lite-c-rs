@@ -53,7 +53,6 @@ impl Document {
     pub fn set_value(&self, value_string: String, for_key: String) {
         unsafe {
             let properties = ffi::CBLDocument_MutableProperties(self.doc);
-
             let key_slice = ffi::FLString {
                 buf: to_ptr(for_key.clone()) as *const c_void,
                 size: for_key.len(),

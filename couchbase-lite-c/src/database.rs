@@ -8,6 +8,7 @@ use crate::errors::CouchbaseLiteError;
 use crate::query::Query;
 use core::ptr;
 
+#[derive(Clone, Debug)]
 pub struct Database {
     pub db: *mut ffi::CBLDatabase,
 }
@@ -54,12 +55,16 @@ impl Database {
 
     pub fn save_document(&self, document: Document) -> Result<Document, CouchbaseLiteError> {
         let mut error = init_error();
-        let CBLConcurrencyControlFailOnConflict: ffi::CBLConcurrencyControl = 0;
+        let CBLConcurrencyControlLastWriteWins: ffi::CBLConcurrencyControl = 0;
+        let CBLConcurrencyControlFailOnConflict: ffi::CBLConcurrencyControl = 1;
+        let json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(document.doc) };
+        println!("BEFORE save document doc: {:?}", to_string(json));
         let saved: *const ffi::CBLDocument =
-            unsafe { ffi::CBLDatabase_SaveDocument(self.db, document.doc, CBLConcurrencyControlFailOnConflict, &mut error) };
+            unsafe { ffi::CBLDatabase_SaveDocument(self.db, document.doc, CBLConcurrencyControlLastWriteWins, &mut error) };
         println!("save document error: {:?}", error);
         if error.code == 0 && saved != ptr::null() {
             let json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(saved) };
+            println!("AFTER save document saved_doc: {:?}", to_string(json));
             let doc = unsafe { ffi::CBLDocument_MutableCopy(saved) };
             Ok(Document::from_raw(self.db, doc))
         } else {
@@ -105,6 +110,16 @@ impl Database {
             }
         }
         return Err(CouchbaseLiteError::ErrorInBatch(error));
+    }
+
+    pub fn close(&self) -> Result<(),CouchbaseLiteError> {
+        let mut error = init_error();
+        let status = unsafe { ffi::CBLDatabase_Close(self.db, &mut error) };
+        if error.code == 0 && status {
+            Ok(())
+        } else {
+            Err(CouchbaseLiteError::CannotCloseDatabase(error))
+        }
     }
 }
 
@@ -255,7 +270,6 @@ mod tests {
 
     #[test]
     fn update_existing_document_with_new_property() {
-        let database1 = open_database();
         let database = open_database();
         let doc_id = String::from("foo");
         database.in_batch(&|| {
@@ -290,6 +304,123 @@ mod tests {
                 assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\"}", doc.jsonify());
             }
         });
+    }
+
+    #[test]
+    fn multiple_update_document() {
+        #[derive(Serialize, Deserialize, Debug)]
+        pub struct Struct1 {
+            pub prop1: String,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub prop2: Option<String>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub prop3: Option<String>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub prop4: Option<String>,
+        }
+        let doc_id = String::from("foo");
+        let database = open_database();
+        {
+            // Create Document
+            let doc = Document::new(doc_id.clone());
+            let data = Struct1 {
+                prop1: "val1".to_string(),
+                prop2: None,
+                prop3: None,
+                prop4: None,
+            };
+            //doc.set_value(String::from("val1"), String::from("prop1"));
+            doc.fill(serde_json::to_string_pretty(&data).unwrap());
+            assert_eq!("{\"prop1\":\"val1\"}", doc.jsonify());
+            let saved = database.save_document(doc);
+            assert_eq!(true, saved.is_ok());
+            let saved = saved.unwrap();
+            assert_eq!(doc_id, saved.id());
+            assert_eq!(1, saved.sequence());
+            assert_eq!("{\"prop1\":\"val1\"}", saved.jsonify());
+
+        }
+        {
+            // First Update
+            database.in_batch(&|| {
+                // Update Document
+                let doc = database.get_document(doc_id.clone());
+                assert_eq!(true, doc.is_some());
+                let doc = doc.unwrap();
+                // Add new property
+                let data = Struct1 {
+                    prop1: "val1".to_string(),
+                    prop2: Some("val2".to_string()),
+                    prop3: None,
+                    prop4: None,
+                };
+                doc.fill(serde_json::to_string_pretty(&data).unwrap());
+                //doc.set_value(String::from("val2"), String::from("prop2"));
+                let saved = database.save_document(doc);
+                assert_eq!(true, saved.is_ok());
+                let doc = database.get_document(doc_id.clone());
+                assert_eq!(true, doc.is_some());
+                let doc = doc.unwrap();
+                assert_eq!(doc_id, doc.id());
+                assert_eq!(2, doc.sequence());
+                assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\"}", doc.jsonify());
+            });
+        }
+        {
+            // Second Update
+            database.in_batch(&|| {
+                // Update Document
+                let doc = database.get_document(doc_id.clone());
+                assert_eq!(true, doc.is_some());
+                let doc = doc.unwrap();
+                // Add new property
+                let data = Struct1 {
+                    prop1: "val1".to_string(),
+                    prop2: Some("val2".to_string()),
+                    prop3: Some("val3".to_string()),
+                    prop4: None,
+                };
+                doc.fill(serde_json::to_string_pretty(&data).unwrap());
+                //doc.set_value(String::from("val3"), String::from("prop3"));
+                assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\",\"prop3\":\"val3\"}", doc.jsonify());
+                let saved = database.save_document(doc);
+                assert_eq!(true, saved.is_ok());
+                let doc = database.get_document(doc_id.clone());
+                assert_eq!(true, doc.is_some());
+                let doc = doc.unwrap();
+                assert_eq!(doc_id, doc.id());
+                assert_eq!(3, doc.sequence());
+                assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\",\"prop3\":\"val3\"}", doc.jsonify());
+            });
+        }
+        {
+            // Second Update
+            database.in_batch(&|| {
+                // Update Document
+                let doc = database.get_document(doc_id.clone());
+                assert_eq!(true, doc.is_some());
+                let doc = doc.unwrap();
+                // Add new property
+                let data = Struct1 {
+                    prop1: "val1".to_string(),
+                    prop2: Some("val2".to_string()),
+                    prop3: Some("val3".to_string()),
+                    prop4: Some("val4".to_string()),
+                };
+                doc.fill(serde_json::to_string_pretty(&data).unwrap());
+                //doc.set_value(String::from("val4"), String::from("prop4"));
+                assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\",\"prop3\":\"val3\",\"prop4\":\"val4\"}", doc.jsonify());
+                let saved = database.save_document(doc);
+                assert_eq!(true, saved.is_ok());
+                let doc = database.get_document(doc_id.clone());
+                assert_eq!(true, doc.is_some());
+                let doc = doc.unwrap();
+                assert_eq!(doc_id, doc.id());
+                assert_eq!(4, doc.sequence());
+                assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\",\"prop3\":\"val3\",\"prop4\":\"val4\"}", doc.jsonify());
+            });
+        }
+
     }
 
 }
