@@ -71,7 +71,7 @@ fn main() {
         println!("cargo:rustc-link-search=native={}/lib", dst.display());
 
     }else {
-        println!("cargo:rustc-link-search=native={}", "/Users/jeromebenois/dev/couchbase-lite-C.git/cmake_build");
+        println!("cargo:rustc-link-search=native=libs/{}", target);
     }
 
     println!("cargo:rustc-link-lib=dylib=CouchbaseLiteC");
