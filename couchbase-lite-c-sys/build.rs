@@ -2,7 +2,7 @@ extern crate cmake;
 use cmake::Config;
 use std::env;
 
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 
 fn main() {
     //mkdir /tmp/MacOS-SDK-include
@@ -71,9 +71,9 @@ fn main() {
         println!("cargo:rustc-link-search=native={}/lib", dst.display());
 
     }else {
-        println!("cargo:rustc-link-search=native=libs/{}", target);
+        let dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+        println!("cargo:rustc-link-search=native={}/{}", Path::new(&dir).join("libs").display(), target);
     }
-
     println!("cargo:rustc-link-lib=dylib=CouchbaseLiteC");
 
 
