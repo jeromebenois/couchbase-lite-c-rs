@@ -2,11 +2,23 @@ extern crate cmake;
 use cmake::Config;
 use std::env;
 
+use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 fn main() {
     //mkdir /tmp/MacOS-SDK-include
-    //ln -s /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/System/Library/Frameworks/CoreFoundation.framework/Headers/ /tmp/MacOS-SDK-include/CoreFoundation
+    //ln -s /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/CoreFoundation.framework/Headers/ /tmp/MacOS-SDK-include/CoreFoundation
+    match fs::create_dir_all("/tmp/MacOS-SDK-include") {
+        Ok(_) => {}
+        Err(e) => panic!("Cannot create directory: {:?}", e),
+    };
+    let output = Command::new("/bin/ln")
+        .arg("-s")
+        .arg("/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/CoreFoundation.framework/Headers/")
+        .arg("/tmp/MacOS-SDK-include/CoreFoundation")
+        .output()
+        .expect("failed to create symbolink link to CoreFoundation Framework");
 
     let target = env::var("TARGET").unwrap();
 
@@ -81,7 +93,5 @@ fn main() {
         println!("cargo:rustc-link-lib=framework=Foundation");
     } else if target.contains("linux") {
         println!("cargo:rustc-link-lib=dylib=stdc++");
-    } /*else {
-          unimplemented!();
-      }*/
+    }
 }
