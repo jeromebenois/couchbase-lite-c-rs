@@ -29,13 +29,13 @@ impl Replicator {
                 replicatorType: replicator_type,
                 continuous: false,
                 authenticator: std::mem::zeroed(),
-                pinnedServerCertificate: std::mem::uninitialized(),//MaybeUninit::uninit().assume_init(),
-                headers: std::mem::uninitialized(),//MaybeUninit::uninit().assume_init(),
-                channels: std::mem::uninitialized(),//MaybeUninit::uninit().assume_init(),
-                documentIDs: std::mem::uninitialized(),//MaybeUninit::uninit().assume_init(),
-                pushFilter: std::mem::uninitialized(),//MaybeUninit::uninit().assume_init(),
-                pullFilter: std::mem::uninitialized(),//MaybeUninit::uninit().assume_init(),
-                filterContext: std::mem::uninitialized(),//MaybeUninit::uninit().assume_init(),
+                pinnedServerCertificate: std::mem::uninitialized(), //MaybeUninit::uninit().assume_init(),
+                headers: std::mem::uninitialized(),                 //MaybeUninit::uninit().assume_init(),
+                channels: std::mem::uninitialized(),                //MaybeUninit::uninit().assume_init(),
+                documentIDs: std::mem::uninitialized(),             //MaybeUninit::uninit().assume_init(),
+                pushFilter: std::mem::uninitialized(),              //MaybeUninit::uninit().assume_init(),
+                pullFilter: std::mem::uninitialized(),              //MaybeUninit::uninit().assume_init(),
+                filterContext: std::mem::uninitialized(),           //MaybeUninit::uninit().assume_init(),
             };
             println!("================================ CBLReplicatorConfiguration : {:?}", config);
             let r = ffi::CBLReplicator_New(&config, &mut error);

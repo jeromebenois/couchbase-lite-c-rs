@@ -112,7 +112,7 @@ impl Database {
         return Err(CouchbaseLiteError::ErrorInBatch(error));
     }
 
-    pub fn close(&self) -> Result<(),CouchbaseLiteError> {
+    pub fn close(&self) -> Result<(), CouchbaseLiteError> {
         let mut error = init_error();
         let status = unsafe { ffi::CBLDatabase_Close(self.db, &mut error) };
         if error.code == 0 && status {
@@ -338,7 +338,6 @@ mod tests {
             assert_eq!(doc_id, saved.id());
             assert_eq!(1, saved.sequence());
             assert_eq!("{\"prop1\":\"val1\"}", saved.jsonify());
-
         }
         {
             // First Update
@@ -409,7 +408,10 @@ mod tests {
                 };
                 doc.fill(serde_json::to_string_pretty(&data).unwrap());
                 //doc.set_value(String::from("val4"), String::from("prop4"));
-                assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\",\"prop3\":\"val3\",\"prop4\":\"val4\"}", doc.jsonify());
+                assert_eq!(
+                    "{\"prop1\":\"val1\",\"prop2\":\"val2\",\"prop3\":\"val3\",\"prop4\":\"val4\"}",
+                    doc.jsonify()
+                );
                 let saved = database.save_document(doc);
                 assert_eq!(true, saved.is_ok());
                 let doc = database.get_document(doc_id.clone());
@@ -417,10 +419,12 @@ mod tests {
                 let doc = doc.unwrap();
                 assert_eq!(doc_id, doc.id());
                 assert_eq!(4, doc.sequence());
-                assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\",\"prop3\":\"val3\",\"prop4\":\"val4\"}", doc.jsonify());
+                assert_eq!(
+                    "{\"prop1\":\"val1\",\"prop2\":\"val2\",\"prop3\":\"val3\",\"prop4\":\"val4\"}",
+                    doc.jsonify()
+                );
             });
         }
-
     }
 
 }
