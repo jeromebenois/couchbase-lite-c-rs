@@ -58,13 +58,13 @@ impl Database {
         let CBLConcurrencyControlLastWriteWins: ffi::CBLConcurrencyControl = 0;
         let CBLConcurrencyControlFailOnConflict: ffi::CBLConcurrencyControl = 1;
         let json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(document.doc) };
-        println!("BEFORE save document doc: {:?}", to_string(json));
+        //println!("BEFORE save document doc: {:?}", to_string(json));
         let saved: *const ffi::CBLDocument =
             unsafe { ffi::CBLDatabase_SaveDocument(self.db, document.doc, CBLConcurrencyControlLastWriteWins, &mut error) };
-        println!("save document error: {:?}", error);
+        //println!("save document error: {:?}", error);
         if error.code == 0 && saved != ptr::null() {
             let json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(saved) };
-            println!("AFTER save document saved_doc: {:?}", to_string(json));
+            //println!("AFTER save document saved_doc: {:?}", to_string(json));
             let doc = unsafe { ffi::CBLDocument_MutableCopy(saved) };
             Ok(Document::from_raw(self.db, doc))
         } else {
