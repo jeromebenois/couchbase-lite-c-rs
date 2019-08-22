@@ -12,11 +12,11 @@ pub struct Replicator {
 }
 
 impl Replicator {
-    pub fn new(database: Database) -> Result<Self, CouchbaseLiteError> {
+    pub fn new(database: Database, target_url: String) -> Result<Self, CouchbaseLiteError> {
         let mut error = init_error();
         let replicator = unsafe {
             // TODO extract URL
-            let endpoint = ffi::CBLEndpoint_NewWithURL(to_ptr("ws://127.0.0.1:4984/mydb".to_string()));
+            let endpoint = ffi::CBLEndpoint_NewWithURL(to_ptr(target_url));
             /*
             CBLReplicatorTypePushAndPull = 0,    ///< Bidirectional; both push and pull
             CBLReplicatorTypePush,               ///< Pushing changes to the target

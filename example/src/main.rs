@@ -28,7 +28,8 @@ pub struct Person {
 fn replicate(db_name: &str) {
     println!("\n --- \n");
     let database = Database::open(String::from("/tmp/"), db_name).unwrap();
-    let replicator = Replicator::new(database.clone()).unwrap();
+    let target_url = "ws://127.0.0.1:4984/mydb".to_string();
+    let replicator = Replicator::new(database.clone(), target_url).unwrap();
     replicator.start();
     println!("waiting ...");
     std::thread::sleep(Duration::from_secs(5));
