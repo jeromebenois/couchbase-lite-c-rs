@@ -15,7 +15,6 @@ impl Replicator {
     pub fn new(database: Database, target_url: String) -> Result<Self, CouchbaseLiteError> {
         let mut error = init_error();
         let replicator = unsafe {
-            // TODO extract URL
             let endpoint = ffi::CBLEndpoint_NewWithURL(to_ptr(target_url));
             /*
             CBLReplicatorTypePushAndPull = 0,    ///< Bidirectional; both push and pull
@@ -28,16 +27,18 @@ impl Replicator {
                 endpoint: endpoint,
                 replicatorType: replicator_type,
                 continuous: false,
-                authenticator: std::mem::zeroed(),
-                pinnedServerCertificate: std::mem::uninitialized(), //MaybeUninit::uninit().assume_init(),
-                headers: std::mem::uninitialized(),                 //MaybeUninit::uninit().assume_init(),
-                channels: std::mem::uninitialized(),                //MaybeUninit::uninit().assume_init(),
-                documentIDs: std::mem::uninitialized(),             //MaybeUninit::uninit().assume_init(),
-                pushFilter: std::mem::uninitialized(),              //MaybeUninit::uninit().assume_init(),
-                pullFilter: std::mem::uninitialized(),              //MaybeUninit::uninit().assume_init(),
-                filterContext: std::mem::uninitialized(),           //MaybeUninit::uninit().assume_init(),
+                authenticator: std::ptr::null_mut(),
+                pinnedServerCertificate: ffi::FLSlice {
+                    buf: std::ptr::null(),
+                    size: 0,
+                },
+                headers: std::ptr::null(),
+                channels: std::ptr::null(),
+                documentIDs: std::ptr::null(),
+                pushFilter: None,
+                pullFilter: None,
+                filterContext: std::ptr::null_mut(),
             };
-            println!("================================ CBLReplicatorConfiguration : {:?}", config);
             let r = ffi::CBLReplicator_New(&config, &mut error);
             r
         };

@@ -13,7 +13,7 @@ fn main() {
         Ok(_) => {}
         Err(e) => panic!("Cannot create directory: {:?}", e),
     };
-    let output = Command::new("/bin/ln")
+    let _output = Command::new("/bin/ln")
         .arg("-s")
         .arg("/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/CoreFoundation.framework/Headers/")
         .arg("/tmp/MacOS-SDK-include/CoreFoundation")

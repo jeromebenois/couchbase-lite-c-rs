@@ -9,7 +9,11 @@ use couchbase_lite_c::Database;
 use couchbase_lite_c::Document;
 use couchbase_lite_c::Replicator;
 
+use std::net::TcpStream;
 use uuid::Uuid;
+
+static DATABASE_PATH: &str = "/data/local/tmp";
+static TARGET_URL: &str = "ws://127.0.0.1:4984/mydb";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Person {
@@ -25,11 +29,10 @@ pub struct Person {
     pub prop4: Option<String>,
 }
 
-fn replicate(db_name: &str) {
+fn replicate(db_name: &str, target_url: &str) {
     println!("\n --- \n");
-    let database = Database::open(String::from("/tmp/"), db_name).unwrap();
-    let target_url = "ws://127.0.0.1:4984/mydb".to_string();
-    let replicator = Replicator::new(database.clone(), target_url).unwrap();
+    let database = Database::open(DATABASE_PATH.to_string(), db_name).unwrap();
+    let replicator = Replicator::new(database.clone(), target_url.to_string()).unwrap();
     replicator.start();
     println!("waiting ...");
     std::thread::sleep(Duration::from_secs(5));
@@ -39,7 +42,7 @@ fn replicate(db_name: &str) {
 
 fn display_local_datas(db_name: &str) {
     println!("\n --- \n");
-    let database = Database::open(String::from("/tmp/"), db_name).unwrap();
+    let database = Database::open(DATABASE_PATH.to_string(), db_name).unwrap();
     //let query = database.new_query("SELECT _id, id, prop1 AS person WHERE first_name='Scott'".to_string());
     let query = database.new_query("SELECT _id AS id, _rev as rev, * AS person".to_string()).unwrap();
     println!("================================");
@@ -57,8 +60,8 @@ fn display_local_datas(db_name: &str) {
 
 fn populate_local_database(db_name: &str) {
     println!("\n --- \n");
-    let database = Database::open(String::from("/tmp/"), db_name).unwrap();
-    let doc_id = String::from("foo");
+    let database = Database::open(DATABASE_PATH.to_string(), db_name).unwrap();
+    let doc_id = String::from("foo2");
     database.in_batch(&|| {
         match database.get_document(doc_id.clone()) {
             Some(doc) => println!("Doc already exits: {:?}", doc.jsonify()),
@@ -90,7 +93,7 @@ fn populate_local_database(db_name: &str) {
 
 fn update_local_database(db_name: &str) {
     println!("\n --- \n");
-    let database = Database::open(String::from("/tmp/"), db_name).unwrap();
+    let database = Database::open(DATABASE_PATH.to_string(), db_name).unwrap();
     let doc_id = String::from("foo");
     database
         .in_batch(&|| {
@@ -123,27 +126,17 @@ fn update_local_database(db_name: &str) {
 }
 
 fn main() {
-    //thread::spawn(move || {
-    println!("coucou");
-
     if let Err(cause) = std::panic::catch_unwind(|| {
-        println!("coucou 1.");
         // start replication thread
         let db_name = "mydba";
-        println!("coucou 2.");
-        //replicate(db_name);
+        replicate(db_name, TARGET_URL);
         display_local_datas(db_name);
-        println!("coucou 3.");
         populate_local_database(db_name);
-        println!("coucou 4.");
         display_local_datas(db_name);
-        println!("coucou 5.");
         update_local_database(db_name);
-        println!("coucou 6.");
         display_local_datas(db_name);
-        println!("coucou 7.");
-        //replicate(db_name);
-        //display_local_datas(db_name);
+        replicate(db_name, TARGET_URL);
+        display_local_datas(db_name);
     }) {
         println!("Code suffered a panic, cause = {:?}", cause);
     }
@@ -176,7 +169,7 @@ match database.get_document(doc_id.clone()) {
         println!("================================ ... ");
         //database.close().unwrap();
         let db_name = "mydb1";
-        let database = Database::open(String::from("/tmp/"), db_name).unwrap();
+        let database = Database::open(DATABASE_PATH.to_string(), db_name).unwrap();
 
         let replicator = Replicator::new(database).unwrap();
         println!("================================ Start replicator");
