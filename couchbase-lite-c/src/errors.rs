@@ -5,6 +5,7 @@ pub enum CouchbaseLiteError {
     CannotOpenDatabase(ffi::CBLError),
     CannotCloseDatabase(ffi::CBLError),
     CannotSaveDocument(ffi::CBLError),
+    CannotDeleteDocument(ffi::CBLError),
     CannotCreateNewQuery(ffi::CBLError),
     CannotFillDocumentFromJson(ffi::CBLError),
     CannotCreateNewReplicator(ffi::CBLError),
