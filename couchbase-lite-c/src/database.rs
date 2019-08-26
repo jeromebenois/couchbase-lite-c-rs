@@ -458,4 +458,31 @@ mod tests {
         }
     }
 
+    #[test]
+    fn get_existing_document() {
+        let database = open_database();
+        let doc_id = String::from("foo");
+        {
+            let doc = Document::new(doc_id.clone());
+            let saved = database.save_document(doc);
+            assert_eq!(true, saved.is_ok());
+            let saved = saved.unwrap();
+            assert_eq!(doc_id, saved.id());
+            assert_eq!(1, saved.sequence());
+            assert_eq!("{}", saved.jsonify());
+        }
+        {
+            let document = database.get_document(doc_id.clone()).unwrap();
+            assert_eq!(doc_id.clone(), document.id());
+        }
+    }
+
+    #[test]
+    fn get_inexisting_document() {
+        let database = open_database();
+        let doc_id = String::from("inexisting");
+        let document = database.get_document(doc_id.clone());
+        assert!(document.is_none());
+    }
+
 }

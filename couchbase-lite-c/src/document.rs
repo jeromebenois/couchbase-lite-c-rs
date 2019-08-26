@@ -12,6 +12,7 @@ use std::os::raw::c_char;
 
 // TODO add generic T: Serialize
 //TODO implement Deref and call unsafe { ffi:CBRelease(saved) };
+#[derive(Debug)]
 pub struct Document /*<T>*/ {
     pub doc: *mut ffi::CBLDocument,
     db: Option<*mut ffi::CBLDatabase>,
