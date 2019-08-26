@@ -36,6 +36,7 @@ fn main() {
             .whitelist_function("FLValue_AsString")
             .whitelist_function("FLValue_ToJSON")
             .whitelist_function("FLDict_Get")
+            .whitelist_function("FLDict_IsEmpty")
             .whitelist_function("FLMutableDict_Set")
             .whitelist_function("FLDict_AsMutable")
             .whitelist_function("FLSlot_SetString")

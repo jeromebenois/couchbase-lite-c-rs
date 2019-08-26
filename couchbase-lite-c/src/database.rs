@@ -49,25 +49,44 @@ impl Database {
         if doc.is_null() {
             None
         } else {
-            Some(Document::from_raw(self.db, doc))
+            let (doc, is_empty_doc) = unsafe {
+                let dict = ffi::CBLDocument_MutableProperties(doc);
+                (doc, ffi::FLDict_IsEmpty(dict))
+            };
+            if is_empty_doc {
+                // document is deleted
+                None
+            } else {
+                Some(Document::from_raw(self.db, doc))
+            }
         }
     }
 
     pub fn save_document(&self, document: Document) -> Result<Document, CouchbaseLiteError> {
-        let mut error = init_error();
-        let concurrency_last_write_wins: ffi::CBLConcurrencyControl = 0;
-        let concurrency_fail_on_conflict: ffi::CBLConcurrencyControl = 1;
-        let json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(document.doc) };
-        //println!("BEFORE save document doc: {:?}", to_string(json));
-        let saved: *const ffi::CBLDocument = unsafe { ffi::CBLDatabase_SaveDocument(self.db, document.doc, concurrency_last_write_wins, &mut error) };
-        //println!("save document error: {:?}", error);
-        if error.code == 0 && saved != ptr::null() {
-            let json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(saved) };
-            //println!("AFTER save document saved_doc: {:?}", to_string(json));
-            let doc = unsafe { ffi::CBLDocument_MutableCopy(saved) };
-            Ok(Document::from_raw(self.db, doc))
+        let is_empty_doc = unsafe {
+            let dict = ffi::CBLDocument_MutableProperties(document.doc);
+            ffi::FLDict_IsEmpty(dict)
+        };
+        if is_empty_doc {
+            Err(CouchbaseLiteError::CannotSaveEmptyDocument)
         } else {
-            Err(CouchbaseLiteError::CannotSaveDocument(error))
+            let mut error = init_error();
+            let concurrency_last_write_wins: ffi::CBLConcurrencyControl = 0;
+            let concurrency_fail_on_conflict: ffi::CBLConcurrencyControl = 1;
+            let json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(document.doc) };
+
+            //println!("BEFORE save document doc: {:?}", to_string(json));
+            let saved: *const ffi::CBLDocument =
+                unsafe { ffi::CBLDatabase_SaveDocument(self.db, document.doc, concurrency_last_write_wins, &mut error) };
+            //println!("save document error: {:?}", error);
+            if error.code == 0 && saved != ptr::null() {
+                let json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(saved) };
+                //println!("AFTER save document saved_doc: {:?}", to_string(json));
+                let doc = unsafe { ffi::CBLDocument_MutableCopy(saved) };
+                Ok(Document::from_raw(self.db, doc))
+            } else {
+                Err(CouchbaseLiteError::CannotSaveDocument(error))
+            }
         }
     }
 
@@ -145,6 +164,8 @@ mod tests {
     use std::time::Instant;
     use uuid::Uuid;
 
+    use serde_json::json;
+
     fn test_dir() -> String {
         let uuid = Uuid::new_v4().to_string();
         let dir = format!("/tmp/testdb/{}", uuid);
@@ -178,23 +199,9 @@ mod tests {
     fn save_empty_document() {
         let database = open_database();
         let doc_id = String::from("foo");
-        {
-            let doc = Document::new(doc_id.clone());
-            let saved = database.save_document(doc);
-            assert_eq!(true, saved.is_ok());
-            let saved = saved.unwrap();
-            assert_eq!(doc_id, saved.id());
-            assert_eq!(1, saved.sequence());
-            assert_eq!("{}", saved.jsonify());
-        }
-        {
-            let doc = database.get_document(doc_id.clone());
-            assert_eq!(true, doc.is_some());
-            let doc = doc.unwrap();
-            assert_eq!(doc_id, doc.id());
-            assert_eq!(1, doc.sequence());
-            assert_eq!("{}", doc.jsonify());
-        }
+        let doc = Document::new(doc_id.clone());
+        let saved = database.save_document(doc);
+        assert_eq!(true, saved.is_err());
     }
 
     #[test]
@@ -443,18 +450,61 @@ mod tests {
         let doc_id = String::from("foo");
         {
             let doc = Document::new(doc_id.clone());
+            doc.fill(json!({"prop1": "val1"}).to_string()).unwrap();
             let saved = database.save_document(doc);
             assert_eq!(true, saved.is_ok());
             let saved = saved.unwrap();
             assert_eq!(doc_id, saved.id());
             assert_eq!(1, saved.sequence());
-            assert_eq!("{}", saved.jsonify());
+            assert_eq!(json!({"prop1": "val1"}).to_string(), saved.jsonify());
         }
         {
             let document = database.get_document(doc_id.clone()).unwrap();
             let deleted = database.delete_document(document);
             assert!(deleted.is_ok());
             assert!(deleted.unwrap());
+        }
+        {
+            let document = database.get_document(doc_id.clone());
+            assert!(document.is_none());
+        }
+    }
+
+    #[test]
+    fn delete_document_with_two_sessions() {
+        let database_name = String::from("testdb");
+        let test_dir = test_dir();
+        let doc_id = String::from("foo");
+        {
+            #[derive(Serialize, Deserialize, Debug)]
+            pub struct Struct1 {
+                pub prop1: String,
+            }
+            let database = Database::open(test_dir.clone(), &database_name).unwrap();
+            let doc = Document::new(doc_id.clone());
+            let data = Struct1 { prop1: "val1".to_string() };
+            doc.fill(serde_json::to_string_pretty(&data).unwrap());
+            let saved = database.save_document(doc);
+            assert_eq!(true, saved.is_ok());
+            let saved = saved.unwrap();
+            assert_eq!(doc_id, saved.id());
+            assert_eq!(1, saved.sequence());
+            assert_eq!("{\"prop1\":\"val1\"}", saved.jsonify());
+            database.close().unwrap();
+        }
+        {
+            let database = Database::open(test_dir.clone(), &database_name).unwrap();
+            let document = database.get_document(doc_id.clone()).unwrap();
+            let deleted = database.delete_document(document);
+            assert!(deleted.is_ok());
+            assert!(deleted.unwrap());
+            database.close().unwrap();
+        }
+        {
+            let database = Database::open(test_dir.clone(), &database_name).unwrap();
+            let document = database.get_document(doc_id.clone());
+            assert!(document.is_none());
+            database.close().unwrap();
         }
     }
 
@@ -464,12 +514,13 @@ mod tests {
         let doc_id = String::from("foo");
         {
             let doc = Document::new(doc_id.clone());
+            doc.fill(json!({"prop1": "val1"}).to_string()).unwrap();
             let saved = database.save_document(doc);
             assert_eq!(true, saved.is_ok());
             let saved = saved.unwrap();
             assert_eq!(doc_id, saved.id());
             assert_eq!(1, saved.sequence());
-            assert_eq!("{}", saved.jsonify());
+            assert_eq!(json!({"prop1": "val1"}).to_string(), saved.jsonify());
         }
         {
             let document = database.get_document(doc_id.clone()).unwrap();

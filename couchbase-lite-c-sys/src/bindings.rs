@@ -414,6 +414,11 @@ extern "C" {
     pub fn FLSlot_SetValue(arg1: FLSlot, arg2: FLValue);
 }
 extern "C" {
+    #[doc = " Returns true if a dictionary is empty (or NULL). Depending on the dictionary's"]
+    #[doc = "representation, this can be faster than `FLDict_Count(a) == 0`"]
+    pub fn FLDict_IsEmpty(arg1: FLDict) -> bool;
+}
+extern "C" {
     #[doc = " If the dictionary is mutable, returns it cast to FLMutableDict, else NULL."]
     pub fn FLDict_AsMutable(arg1: FLDict) -> FLMutableDict;
 }
