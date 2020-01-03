@@ -1,9 +1,10 @@
 use core::slice;
 use ffi;
 use std::ffi::CStr;
-use std::str;
+use std::{str, mem};
 
 use crate::to_ptr;
+use std::ops::Deref;
 
 pub struct ResultSet {
     pub rs: *mut ffi::CBLResultSet,
@@ -34,5 +35,11 @@ impl ResultSet {
             }
         };
         str::from_utf8(slice).unwrap().to_string()
+    }
+}
+
+impl Drop for ResultSet {
+    fn drop(&mut self) {
+        unsafe { ffi::CBL_Release(mem::transmute::<*mut ffi::CBLResultSet, *mut ffi::CBLRefCounted>(self.rs)) };
     }
 }

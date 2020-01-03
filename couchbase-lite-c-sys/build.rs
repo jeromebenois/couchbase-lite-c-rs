@@ -30,6 +30,7 @@ fn main() {
             //.ctypes_prefix("libc")
             .whitelist_function("CBLDatabase_.*")
             .whitelist_function("CBLDocument_.*")
+            .whitelist_function("CBL_Release")
             .whitelist_function("CBLQuery_.*")
             .whitelist_function("CBLResultSet_.*")
             .whitelist_function("FLValue_GetType")

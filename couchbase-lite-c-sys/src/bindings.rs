@@ -45,6 +45,17 @@ fn bindgen_test_layout_CBLError() {
 pub type CBLTimestamp = i64;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct CBLRefCounted {
+    _unused: [u8; 0],
+}
+extern "C" {
+    #[doc = " Decrements an object's reference-count, freeing the object if the count hits zero."]
+    #[doc = "Usually you'll call one of the type-safe synonyms specific to the object type,"]
+    #[doc = "like \\ref CBLDatabase_Release."]
+    pub fn CBL_Release(arg1: *mut CBLRefCounted);
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct CBLDatabase {
     _unused: [u8; 0],
 }

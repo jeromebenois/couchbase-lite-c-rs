@@ -3,6 +3,7 @@ use ffi;
 use crate::errors::init_error;
 use crate::errors::CouchbaseLiteError;
 use crate::resultset::ResultSet;
+use std::mem;
 
 pub struct Query {
     pub query: *mut ffi::CBLQuery,
@@ -17,5 +18,11 @@ impl Query {
         } else {
             Err(CouchbaseLiteError::CannotExecuteQuery(error))
         }
+    }
+}
+
+impl Drop for Query {
+    fn drop(&mut self) {
+        unsafe { ffi::CBL_Release( mem::transmute::<*mut ffi::CBLQuery, *mut ffi::CBLRefCounted>(self.query)) };
     }
 }
