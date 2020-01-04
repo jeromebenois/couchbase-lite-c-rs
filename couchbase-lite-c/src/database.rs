@@ -7,6 +7,7 @@ use crate::errors::init_error;
 use crate::errors::CouchbaseLiteError;
 use crate::query::Query;
 use core::ptr;
+use std::mem;
 
 #[derive(Clone, Debug)]
 pub struct Database {
@@ -151,6 +152,13 @@ impl Database {
         }
     }
 }
+
+impl Drop for Database {
+    fn drop(&mut self) {
+        unsafe { ffi::CBL_Release( mem::transmute::<*mut ffi::CBLDatabase, *mut ffi::CBLRefCounted>(self.db)) };
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

@@ -6,6 +6,7 @@ use std::string::ToString;
 use crate::errors::init_error;
 use crate::errors::CouchbaseLiteError;
 use std::mem::MaybeUninit;
+use std::mem;
 
 pub struct Replicator {
     replicator: *mut ffi::CBLReplicator,
@@ -56,5 +57,11 @@ impl Replicator {
 
     pub fn stop(&self) {
         unsafe { ffi::CBLReplicator_Stop(self.replicator) };
+    }
+}
+
+impl Drop for Replicator {
+    fn drop(&mut self) {
+        unsafe { ffi::CBL_Release( mem::transmute::<*mut ffi::CBLReplicator, *mut ffi::CBLRefCounted>(self.replicator)) };
     }
 }

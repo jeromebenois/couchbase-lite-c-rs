@@ -74,6 +74,12 @@ impl Document {
     }
 }
 
+impl Drop for Document {
+    fn drop(&mut self) {
+        unsafe { ffi::CBL_Release( mem::transmute::<*mut ffi::CBLDocument, *mut ffi::CBLRefCounted>(self.doc)) };
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::Database;
