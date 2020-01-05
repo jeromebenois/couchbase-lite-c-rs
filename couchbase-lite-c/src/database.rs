@@ -38,6 +38,24 @@ impl Database {
         }
     }
 
+    pub fn create_index(&self, name: &str, column_expression: &str) -> Result<(), CouchbaseLiteError> {
+        let mut error = init_error();
+        let index_name = to_ptr(name.to_string());
+
+        let config = ffi::CBLIndexSpec {
+            type_: 0,//0 -> kCBLValueIndex -> An index that stores property or expression values, 1 -> kCBLFullTextIndex -> An index of strings, that enables searching for words with `MATCH`
+            keyExpressionsJSON: to_ptr(column_expression.to_string()),
+            ignoreAccents: false,
+            language: ptr::null()
+        };
+        let result = unsafe { ffi::CBLDatabase_CreateIndex(self.db, index_name, config, &mut error) };
+        if result {
+            Ok(())
+        } else {
+            Err(CouchbaseLiteError::CannotOpenDatabase(error))
+        }
+    }
+
     pub fn create_document(&self, id: String) -> Document {
         let doc_id = to_ptr(id);
         let doc = unsafe { ffi::CBLDocument_New(doc_id) };
@@ -236,6 +254,33 @@ mod tests {
             assert_eq!(1, doc.sequence());
             assert_eq!("{\"greeting\":\"Howdy!\"}", doc.jsonify());
         }
+    }
+    #[test]
+    fn test_index() {
+        let database = open_database();
+        for i in 0..10000 {
+            let doc = Document::new(format!("id_{}", i));
+            doc.set_value(format!("Howdy{}!", i), String::from("greeting"));
+            let saved = database.save_document(doc);
+            assert!(saved.is_ok());
+        }
+
+        let start = Instant::now();
+        let query = database.new_query("SELECT _id AS id, _rev as rev, * AS patient WHERE greeting='Howdy1!'".to_string()).unwrap();
+        let rs = query.execute().unwrap();
+
+        assert!(rs.has_next());
+        assert!(start.elapsed().as_millis() > 10);
+
+        //For columln_expression cf. c4db_createIndex in couchbase-lite-core project
+        let created = database.create_index("greeting_index", "[[\".greeting\"]]");
+        assert!(created.is_ok());
+
+        let start = Instant::now();
+        let rs = query.execute().unwrap();
+        assert!(rs.has_next());
+        assert!(start.elapsed().as_millis() < 1);
+
     }
 
     #[test]

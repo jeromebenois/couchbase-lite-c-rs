@@ -11,6 +11,7 @@ pub enum CouchbaseLiteError {
     CannotFillDocumentFromJson(ffi::CBLError),
     CannotCreateNewReplicator(ffi::CBLError),
     CannotExecuteQuery(ffi::CBLError),
+    CannotCreateIndex(ffi::CBLError),
     ErrorInBatch(ffi::CBLError),
 }
 
