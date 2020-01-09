@@ -66,7 +66,7 @@ impl Database {
 
     pub fn get_document(&self, id: String) -> Option<Document> {
         let doc_id = to_ptr(id.to_string());
-        let mut doc = unsafe { ffi::CBLDatabase_GetMutableDocument(self.db, doc_id) };
+        let doc = unsafe { ffi::CBLDatabase_GetMutableDocument(self.db, doc_id) };
         if doc.is_null() {
             None
         } else {
