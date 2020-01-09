@@ -161,7 +161,21 @@ impl Database {
                 return Ok(());
             }
         }
-        return Err(CouchbaseLiteError::ErrorInBatch(error));
+        Err(CouchbaseLiteError::ErrorInBatch(error))
+    }
+
+    /// Executes an operation as a "batch", similar to a transaction.
+    pub fn in_batch_with_result<T>(&self, unit: &dyn Fn() -> Result<T, CouchbaseLiteError>) -> Result<T, CouchbaseLiteError> {
+        let mut error = init_error();
+        let status = unsafe { ffi::CBLDatabase_BeginBatch(self.db, &mut error) };
+        if error.code == 0 && status {
+            let result = (unit)();
+            let status = unsafe { ffi::CBLDatabase_EndBatch(self.db, &mut error) };
+            if error.code == 0 && status {
+                return result;
+            }
+        }
+        Err(CouchbaseLiteError::ErrorInBatch(error))
     }
 
     pub fn close(&self) -> Result<(), CouchbaseLiteError> {
