@@ -34,6 +34,9 @@ impl Document {
         to_string(doc_id)
     }
 
+    /// Sets a mutable document's properties from a JSON string.
+    ///
+    /// Returns true iff it was successful.
     pub fn fill(&self, json: String) -> Result<bool, CouchbaseLiteError> {
         let mut error = init_error();
         let json_string = to_ptr(json);

@@ -57,6 +57,7 @@ impl Database {
         }
     }
 
+    /// Creates a new, empty document in memory. It will not be added to a database until saved.
     pub fn create_document(&self, id: String) -> Document {
         let doc_id = to_ptr(id);
         let doc = unsafe { ffi::CBLDocument_New(doc_id) };
@@ -82,6 +83,7 @@ impl Database {
         }
     }
 
+    /// Saves a (mutable) document to the database.
     pub fn save_document(&self, document: Document) -> Result<Document, CouchbaseLiteError> {
         let is_empty_doc = unsafe {
             let dict = ffi::CBLDocument_MutableProperties(document.doc);
@@ -148,7 +150,8 @@ impl Database {
         unsafe { ffi::CBLDatabase_Count(self.db) }
     }
 
-    pub fn in_batch(&self, unit: &Fn() -> ()) -> Result<(), CouchbaseLiteError> {
+    /// Executes an operation as a "batch", similar to a transaction.
+    pub fn in_batch(&self, unit: &dyn Fn() -> ()) -> Result<(), CouchbaseLiteError> {
         let mut error = init_error();
         let status = unsafe { ffi::CBLDatabase_BeginBatch(self.db, &mut error) };
         if error.code == 0 && status {
