@@ -3,7 +3,7 @@ use cmake::Config;
 use std::env;
 
 use std::fs;
-use std::path::{PathBuf};
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn bindgen_common() -> bindgen::Builder {
@@ -92,7 +92,21 @@ fn main_android() {
 }
 
 fn main_windows() {
-    unimplemented!();
+    let bindings = bindgen_common()
+        .generate()
+        .expect("Unable to generate bindings");
+
+    let out_path = PathBuf::from("src");
+    bindings.write_to_file(out_path.join("bindings.rs")).expect("Couldn't write bindings!");
+
+    let _dst = Config::new("libCouchbaseLiteC").build();
+
+    let target = env::var("TARGET").unwrap();
+    let dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    println!("cargo:rustc-link-search=native={}/{}", Path::new(&dir).join("libs").display(), target);
+
+    println!("cargo:rustc-link-lib=dylib=CouchbaseLiteC");
+    println!("cargo:rustc-link-lib=dylib=stdc++");
 }
 
 fn main() {
