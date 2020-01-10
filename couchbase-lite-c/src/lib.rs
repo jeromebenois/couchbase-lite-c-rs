@@ -9,6 +9,7 @@ use std::mem;
 use std::os::raw::c_void;
 use std::str;
 
+pub use authenticator::*;
 pub use database::*;
 pub use document::*;
 pub use errors::*;
@@ -17,6 +18,7 @@ pub use replicator::*;
 pub use resultset::*;
 use std::mem::MaybeUninit;
 
+mod authenticator;
 mod database;
 mod document;
 mod errors;
