@@ -4,3 +4,4 @@ libCouchbaseLiteC
 .idea
 /target
 **/*.rs.bk
+couchbase-lite-c-sys/src/bindings.rs
