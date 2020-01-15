@@ -94,8 +94,7 @@ impl Database {
             Err(CouchbaseLiteError::CannotSaveEmptyDocument)
         } else {
             let mut error = init_error();
-            let concurrency_last_write_wins: ffi::CBLConcurrencyControl = 0;
-            let concurrency_fail_on_conflict: ffi::CBLConcurrencyControl = 1;
+            let concurrency_last_write_wins: ffi::CBLConcurrencyControl = 0; // concurrency_fail_on_conflict: ffi::CBLConcurrencyControl = 1
             let _json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(document.doc) };
 
             //println!("BEFORE save document doc: {:?}", to_string(json));
