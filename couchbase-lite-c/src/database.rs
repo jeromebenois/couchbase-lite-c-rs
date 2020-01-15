@@ -187,6 +187,16 @@ impl Database {
             Err(CouchbaseLiteError::CannotCloseDatabase(error))
         }
     }
+
+    pub fn delete(&self) -> Result<(), CouchbaseLiteError> {
+        let mut error = init_error();
+        let status = unsafe { ffi::CBLDatabase_Delete(self.db, &mut error) };
+        if error.code == 0 && status {
+            Ok(())
+        } else {
+            Err(CouchbaseLiteError::CannotDeleteDatabase(error))
+        }
+    }
 }
 
 impl Drop for Database {
