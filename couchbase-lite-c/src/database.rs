@@ -64,6 +64,7 @@ impl Database {
         Document::from_raw(self.db, doc)
     }
 
+    /// Fetches a document with given id (if there is one).
     pub fn get_document(&self, id: String) -> Option<Document> {
         let doc_id = to_ptr(id.to_string());
         let doc = unsafe { ffi::CBLDatabase_GetMutableDocument(self.db, doc_id) };
@@ -112,6 +113,19 @@ impl Database {
         }
     }
 
+    /// Deletes a document from the database. Deletions are replicated.
+    ///
+    /// Warning You are still responsible for releasing the CBLDocument.
+    ///
+    /// ### Arguments
+    ///
+    /// * document The document to delete.
+    /// * concurrency Conflict-handling strategy.
+    /// * error On failure, the error will be written here.
+    ///
+    /// ### Return value
+    ///
+    /// True if the document was deleted, false if an error occurred.
     pub fn delete_document(&self, document: Document) -> Result<bool, CouchbaseLiteError> {
         let mut error = init_error();
         let concurrency_last_write_wins: ffi::CBLConcurrencyControl = 0;
@@ -123,6 +137,7 @@ impl Database {
         }
     }
 
+    /// Creates a new query by compiling the input string.
     pub fn new_query(&self, n1ql_query: String) -> Result<Query, CouchbaseLiteError> {
         let n1ql_query_language: ffi::CBLQueryLanguage = 1;
         let query_string = to_ptr(n1ql_query);
@@ -136,16 +151,19 @@ impl Database {
         }
     }
 
+    /// Returns the database's name.
     pub fn get_name(&self) -> String {
         let name = unsafe { ffi::CBLDatabase_Name(self.db) };
         to_string(name)
     }
 
+    /// Returns the database's full filesystem path.
     pub fn get_path(&self) -> String {
         let path = unsafe { ffi::CBLDatabase_Path(self.db) };
         to_string(path)
     }
 
+    /// Returns the number of documents in the database.
     pub fn count(&self) -> u64 {
         unsafe { ffi::CBLDatabase_Count(self.db) }
     }
@@ -164,7 +182,7 @@ impl Database {
         Err(CouchbaseLiteError::ErrorInBatch(error))
     }
 
-    /// Executes an operation as a "batch", similar to a transaction.
+    /// Executes an operation as a "batch", similar to a transaction. The operation function can return a result.
     pub fn in_batch_with_result<T>(&self, unit: &dyn Fn() -> Result<T, CouchbaseLiteError>) -> Result<T, CouchbaseLiteError> {
         let mut error = init_error();
         let status = unsafe { ffi::CBLDatabase_BeginBatch(self.db, &mut error) };
@@ -188,6 +206,7 @@ impl Database {
         }
     }
 
+    /// Deletes the (opened) database. After the database is deleted, the database object (self) is closed.
     pub fn delete(&self) -> Result<(), CouchbaseLiteError> {
         let mut error = init_error();
         let status = unsafe { ffi::CBLDatabase_Delete(self.db, &mut error) };

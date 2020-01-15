@@ -29,6 +29,7 @@ impl Document {
         Document { db: Some(db), doc: doc }
     }
 
+    // Returns the document id.
     pub fn id(&self) -> String {
         let doc_id = unsafe { ffi::CBLDocument_ID(self.doc) };
         to_string(doc_id)
