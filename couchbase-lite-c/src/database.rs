@@ -6,15 +6,22 @@ use crate::document::Document;
 use crate::errors::init_error;
 use crate::errors::CouchbaseLiteError;
 use crate::query::Query;
+
 use core::ptr;
-use std::mem;
+use std::cell::Cell;
 
 #[derive(Clone, Debug)]
 pub struct Database {
     pub db: *mut ffi::CBLDatabase,
+    open: Cell<bool>,   // this could just be a bool but then we'd have to
+                        //incompatibly change close signature to fn close(&mut self)
 }
 
 impl Database {
+    fn from(db: *mut ffi::CBLDatabase) -> Self {
+        Database{ db, open: Cell::new(true) }
+    }
+
     pub fn open(directory: String, name: &str) -> Result<Self, CouchbaseLiteError> {
         let mut error = init_error();
         let database_name = to_ptr(name.to_string());
@@ -32,7 +39,7 @@ impl Database {
         let db = unsafe { ffi::CBLDatabase_Open(database_name, &config, &mut error) };
         if error.code == 0 {
             println!("open database status: {:?} (OK)", error);
-            Ok(Database { db })
+            Ok(Database::from(db))
         } else {
             println!("open database error: {:?}", error);
             Err(CouchbaseLiteError::CannotOpenDatabase(error))
@@ -199,6 +206,7 @@ impl Database {
         let mut error = init_error();
         let status = unsafe { ffi::CBLDatabase_Close(self.db, &mut error) };
         if error.code == 0 && status {
+            self.open.set(false);
             Ok(())
         } else {
             Err(CouchbaseLiteError::CannotCloseDatabase(error))
@@ -210,6 +218,7 @@ impl Database {
         let mut error = init_error();
         let status = unsafe { ffi::CBLDatabase_Delete(self.db, &mut error) };
         if error.code == 0 && status {
+            self.open.set(false);
             Ok(())
         } else {
             Err(CouchbaseLiteError::CannotDeleteDatabase(error))
@@ -219,7 +228,11 @@ impl Database {
 
 impl Drop for Database {
     fn drop(&mut self) {
-        unsafe { ffi::CBL_Release( mem::transmute::<*mut ffi::CBLDatabase, *mut ffi::CBLRefCounted>(self.db)) };
+        if self.open.get() {
+            let _ = self.close();
+            self.open.set(false);
+        }
+        unsafe { ffi::CBL_Release(self.db as *mut ffi::CBLRefCounted) };
     }
 }
 
