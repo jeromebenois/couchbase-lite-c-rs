@@ -26,7 +26,7 @@ impl Replicator {
             let replicator_type: ffi::CBLReplicatorType = 0;
             let config = ffi::CBLReplicatorConfiguration {
                 database: database.db,
-                endpoint: endpoint,
+                endpoint,
                 replicatorType: replicator_type,
                 continuous: false,
                 authenticator: std::ptr::null_mut(),
@@ -45,7 +45,7 @@ impl Replicator {
             r
         };
         if error.code == 0 {
-            Ok(Replicator { replicator: replicator })
+            Ok(Replicator { replicator })
         } else {
             Err(CouchbaseLiteError::CannotCreateNewReplicator(error))
         }
