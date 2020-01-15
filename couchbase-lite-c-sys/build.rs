@@ -32,6 +32,7 @@ fn bindgen_common() -> bindgen::Builder {
     .whitelist_function("FLSlot_SetInt")
     .whitelist_function("FLStr")
     .whitelist_function("CBLEndpoint_NewWithURL")
+    .whitelist_function("CBLEndpoint_Free")
     .whitelist_function("CBLBlob_.*")
     .whitelist_function("CBLReplicator_.*")
     .whitelist_function("CBLAuth_.*")
