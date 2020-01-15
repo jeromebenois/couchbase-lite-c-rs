@@ -108,7 +108,7 @@ impl Database {
             let saved: *const ffi::CBLDocument =
                 unsafe { ffi::CBLDatabase_SaveDocument(self.db, document.doc, concurrency_last_write_wins, &mut error) };
             //println!("save document error: {:?}", error);
-            if error.code == 0 && saved.is_null() {
+            if error.code == 0 && saved != ptr::null() {
                 let _json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(saved) };
                 //println!("AFTER save document saved_doc: {:?}", to_string(json));
                 let doc = unsafe { ffi::CBLDocument_MutableCopy(saved) };
