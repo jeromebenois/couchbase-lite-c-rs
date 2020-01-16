@@ -5,10 +5,7 @@ use crate::to_string;
 use core::mem;
 use ffi;
 use std::os::raw::c_void;
-use std::str;
 
-use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
 
 // TODO add generic T: Serialize
 //TODO implement Deref and call unsafe { ffi:CBRelease(saved) };
@@ -22,11 +19,11 @@ pub struct Document /*<T>*/ {
 impl Document {
     pub fn new(id: String) -> Self {
         let doc = unsafe { ffi::CBLDocument_New(to_ptr(id)) };
-        Document { doc: doc, db: None }
+        Document { doc, db: None }
     }
 
     pub fn from_raw(db: *mut ffi::CBLDatabase, doc: *mut ffi::CBLDocument) -> Self {
-        Document { db: Some(db), doc: doc }
+        Document { db: Some(db), doc }
     }
 
     // Returns the document id.
@@ -86,7 +83,6 @@ impl Drop for Document {
 
 #[cfg(test)]
 mod tests {
-    use crate::Database;
     use crate::Document;
     use serde::{Deserialize, Serialize};
 

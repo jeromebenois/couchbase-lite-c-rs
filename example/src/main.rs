@@ -2,15 +2,10 @@ extern crate couchbase_lite_c;
 extern crate uuid;
 
 use serde::{Deserialize, Serialize};
-use std::thread;
 use std::time::Duration;
 
 use couchbase_lite_c::Database;
-use couchbase_lite_c::Document;
 use couchbase_lite_c::Replicator;
-
-use std::net::TcpStream;
-use uuid::Uuid;
 
 static DATABASE_PATH: &str = "/data/local/tmp";
 static TARGET_URL: &str = "ws://127.0.0.1:4984/mydb";

@@ -4,9 +4,7 @@ extern crate uuid;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
-use core::ptr;
 use std::mem;
-use std::os::raw::c_void;
 use std::str;
 
 pub use authenticator::*;
@@ -16,7 +14,6 @@ pub use errors::*;
 pub use query::*;
 pub use replicator::*;
 pub use resultset::*;
-use std::mem::MaybeUninit;
 
 mod authenticator;
 mod database;

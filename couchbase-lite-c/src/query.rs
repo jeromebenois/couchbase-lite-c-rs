@@ -14,7 +14,7 @@ impl Query {
         let mut error = init_error();
         let rs = unsafe { ffi::CBLQuery_Execute(self.query, &mut error) };
         if error.code == 0 {
-            Ok(ResultSet { rs: rs })
+            Ok(ResultSet { rs })
         } else {
             Err(CouchbaseLiteError::CannotExecuteQuery(error))
         }

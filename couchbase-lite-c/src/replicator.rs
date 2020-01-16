@@ -41,8 +41,7 @@ impl Replicator {
                 pullFilter: None,
                 filterContext: std::ptr::null_mut(),
             };
-            let r = ffi::CBLReplicator_New(&config, &mut error);
-            r
+            ffi::CBLReplicator_New(&config, &mut error)
         };
         if error.code == 0 {
             Ok(Replicator { replicator })
