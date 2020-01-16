@@ -4,7 +4,6 @@ use std::ffi::CStr;
 use std::{str, mem};
 
 use crate::to_ptr;
-use std::ops::Deref;
 
 pub struct ResultSet {
     pub rs: *mut ffi::CBLResultSet,
@@ -12,8 +11,7 @@ pub struct ResultSet {
 
 impl ResultSet {
     pub fn has_next(&self) -> bool {
-        let next = unsafe { ffi::CBLResultSet_Next(self.rs) };
-        next
+        unsafe { ffi::CBLResultSet_Next(self.rs) }
     }
 
     // return Doc

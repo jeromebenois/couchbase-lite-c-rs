@@ -5,10 +5,7 @@ use crate::to_string;
 use core::mem;
 use ffi;
 use std::os::raw::c_void;
-use std::str;
 
-use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
 
 // TODO add generic T: Serialize
 //TODO implement Deref and call unsafe { ffi:CBRelease(saved) };
@@ -22,18 +19,22 @@ pub struct Document /*<T>*/ {
 impl Document {
     pub fn new(id: String) -> Self {
         let doc = unsafe { ffi::CBLDocument_New(to_ptr(id)) };
-        Document { doc: doc, db: None }
+        Document { doc, db: None }
     }
 
     pub fn from_raw(db: *mut ffi::CBLDatabase, doc: *mut ffi::CBLDocument) -> Self {
-        Document { db: Some(db), doc: doc }
+        Document { db: Some(db), doc }
     }
 
+    // Returns the document id.
     pub fn id(&self) -> String {
         let doc_id = unsafe { ffi::CBLDocument_ID(self.doc) };
         to_string(doc_id)
     }
 
+    /// Sets a mutable document's properties from a JSON string.
+    ///
+    /// Returns true iff it was successful.
     pub fn fill(&self, json: String) -> Result<bool, CouchbaseLiteError> {
         let mut error = init_error();
         let json_string = to_ptr(json);
@@ -82,7 +83,6 @@ impl Drop for Document {
 
 #[cfg(test)]
 mod tests {
-    use crate::Database;
     use crate::Document;
     use serde::{Deserialize, Serialize};
 

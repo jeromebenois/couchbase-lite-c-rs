@@ -13,6 +13,7 @@ pub enum CouchbaseLiteError {
     CannotExecuteQuery(ffi::CBLError),
     CannotCreateIndex(ffi::CBLError),
     ErrorInBatch(ffi::CBLError),
+    CannotDeleteDatabase(ffi::CBLError),
 }
 
 pub fn init_error() -> ffi::CBLError {

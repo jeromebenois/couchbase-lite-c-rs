@@ -33,11 +33,11 @@ fn save_document_from_json() {
 
     let database = open_database();
     let doc_id = String::from("foo");
-    let doc = Document::new(doc_id.clone());
-    doc.fill(serde_json::to_string_pretty(&person).unwrap());
+    let doc = Document::new(doc_id);
+    doc.fill(serde_json::to_string_pretty(&person).unwrap()).unwrap();
     assert_eq!("{\"first_name\":\"James\",\"last_name\":\"Bomb\"}", doc.jsonify());
 
-    let saved = database.save_document(doc);
+    let _saved = database.save_document(doc);
     //assert_eq!(true, saved.is_ok());
     //let saved = saved.unwrap();
     //assert_eq!(doc_id, saved.id());
@@ -46,7 +46,7 @@ fn save_document_from_json() {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("save document from json", |b| b.iter(|| save_document_from_json()));
+    c.bench_function("save document from json", |b| b.iter(save_document_from_json));
 }
 
 criterion_group!(benches, criterion_benchmark);

@@ -6,34 +6,42 @@ use crate::document::Document;
 use crate::errors::init_error;
 use crate::errors::CouchbaseLiteError;
 use crate::query::Query;
+
 use core::ptr;
-use std::mem;
+use std::cell::Cell;
 
 #[derive(Clone, Debug)]
 pub struct Database {
     pub db: *mut ffi::CBLDatabase,
+    open: Cell<bool>,   // this could just be a bool but then we'd have to
+                        //incompatibly change close signature to fn close(&mut self)
 }
 
 impl Database {
+    fn from(db: *mut ffi::CBLDatabase) -> Self {
+        Database{ db, open: Cell::new(true) }
+    }
+
     pub fn open(directory: String, name: &str) -> Result<Self, CouchbaseLiteError> {
         let mut error = init_error();
         let database_name = to_ptr(name.to_string());
-        let CBLDatabase_Create: ffi::CBLDatabaseFlags = 1;
+        let flags: ffi::CBLDatabaseFlags = 1;
         // No encryption (default)
-        let CBLEncryptionNone: ffi::CBLEncryptionAlgorithm = 0;
+        let encrypt_galgo: ffi::CBLEncryptionAlgorithm = 0;
         let config = ffi::CBLDatabaseConfiguration {
             directory: to_ptr(directory),
-            flags: CBLDatabase_Create,
+            flags,
             encryptionKey: ffi::CBLEncryptionKey {
-                algorithm: CBLEncryptionNone,
+                algorithm: encrypt_galgo,
                 bytes: [0; 32usize],
             },
         };
         let db = unsafe { ffi::CBLDatabase_Open(database_name, &config, &mut error) };
-        println!("open database error: {:?}", error);
         if error.code == 0 {
-            Ok(Database { db: db })
+            println!("open database status: {:?} (OK)", error);
+            Ok(Database::from(db))
         } else {
+            println!("open database error: {:?}", error);
             Err(CouchbaseLiteError::CannotOpenDatabase(error))
         }
     }
@@ -56,15 +64,17 @@ impl Database {
         }
     }
 
+    /// Creates a new, empty document in memory. It will not be added to a database until saved.
     pub fn create_document(&self, id: String) -> Document {
         let doc_id = to_ptr(id);
         let doc = unsafe { ffi::CBLDocument_New(doc_id) };
         Document::from_raw(self.db, doc)
     }
 
+    /// Fetches a document with given id (if there is one).
     pub fn get_document(&self, id: String) -> Option<Document> {
-        let doc_id = to_ptr(id.to_string());
-        let mut doc = unsafe { ffi::CBLDatabase_GetMutableDocument(self.db, doc_id) };
+        let doc_id = to_ptr(id);
+        let doc = unsafe { ffi::CBLDatabase_GetMutableDocument(self.db, doc_id) };
         if doc.is_null() {
             None
         } else {
@@ -81,6 +91,7 @@ impl Database {
         }
     }
 
+    /// Saves a (mutable) document to the database.
     pub fn save_document(&self, document: Document) -> Result<Document, CouchbaseLiteError> {
         let is_empty_doc = unsafe {
             let dict = ffi::CBLDocument_MutableProperties(document.doc);
@@ -90,16 +101,15 @@ impl Database {
             Err(CouchbaseLiteError::CannotSaveEmptyDocument)
         } else {
             let mut error = init_error();
-            let concurrency_last_write_wins: ffi::CBLConcurrencyControl = 0;
-            let concurrency_fail_on_conflict: ffi::CBLConcurrencyControl = 1;
-            let json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(document.doc) };
+            let concurrency_last_write_wins: ffi::CBLConcurrencyControl = 0; // concurrency_fail_on_conflict: ffi::CBLConcurrencyControl = 1
+            let _json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(document.doc) };
 
             //println!("BEFORE save document doc: {:?}", to_string(json));
             let saved: *const ffi::CBLDocument =
                 unsafe { ffi::CBLDatabase_SaveDocument(self.db, document.doc, concurrency_last_write_wins, &mut error) };
             //println!("save document error: {:?}", error);
             if error.code == 0 && saved != ptr::null() {
-                let json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(saved) };
+                let _json: *mut ::std::os::raw::c_char = unsafe { ffi::CBLDocument_PropertiesAsJSON(saved) };
                 //println!("AFTER save document saved_doc: {:?}", to_string(json));
                 let doc = unsafe { ffi::CBLDocument_MutableCopy(saved) };
                 Ok(Document::from_raw(self.db, doc))
@@ -109,6 +119,19 @@ impl Database {
         }
     }
 
+    /// Deletes a document from the database. Deletions are replicated.
+    ///
+    /// Warning You are still responsible for releasing the CBLDocument.
+    ///
+    /// ### Arguments
+    ///
+    /// * document The document to delete.
+    /// * concurrency Conflict-handling strategy.
+    /// * error On failure, the error will be written here.
+    ///
+    /// ### Return value
+    ///
+    /// True if the document was deleted, false if an error occurred.
     pub fn delete_document(&self, document: Document) -> Result<bool, CouchbaseLiteError> {
         let mut error = init_error();
         let concurrency_last_write_wins: ffi::CBLConcurrencyControl = 0;
@@ -120,34 +143,39 @@ impl Database {
         }
     }
 
+    /// Creates a new query by compiling the input string.
     pub fn new_query(&self, n1ql_query: String) -> Result<Query, CouchbaseLiteError> {
         let n1ql_query_language: ffi::CBLQueryLanguage = 1;
         let query_string = to_ptr(n1ql_query);
-        let mut outErrorPos: ::std::os::raw::c_int = 0;
+        let mut out_error_pos: ::std::os::raw::c_int = 0;
         let mut error = init_error();
-        let query = unsafe { ffi::CBLQuery_New(self.db, n1ql_query_language, query_string, &mut outErrorPos, &mut error) };
+        let query = unsafe { ffi::CBLQuery_New(self.db, n1ql_query_language, query_string, &mut out_error_pos, &mut error) };
         if error.code == 0 {
-            Ok(Query { query: query })
+            Ok(Query { query })
         } else {
             Err(CouchbaseLiteError::CannotCreateNewQuery(error))
         }
     }
 
+    /// Returns the database's name.
     pub fn get_name(&self) -> String {
         let name = unsafe { ffi::CBLDatabase_Name(self.db) };
         to_string(name)
     }
 
+    /// Returns the database's full filesystem path.
     pub fn get_path(&self) -> String {
         let path = unsafe { ffi::CBLDatabase_Path(self.db) };
         to_string(path)
     }
 
+    /// Returns the number of documents in the database.
     pub fn count(&self) -> u64 {
         unsafe { ffi::CBLDatabase_Count(self.db) }
     }
 
-    pub fn in_batch(&self, unit: &Fn() -> ()) -> Result<(), CouchbaseLiteError> {
+    /// Executes an operation as a "batch", similar to a transaction.
+    pub fn in_batch(&self, unit: &dyn Fn() -> ()) -> Result<(), CouchbaseLiteError> {
         let mut error = init_error();
         let status = unsafe { ffi::CBLDatabase_BeginBatch(self.db, &mut error) };
         if error.code == 0 && status {
@@ -157,23 +185,54 @@ impl Database {
                 return Ok(());
             }
         }
-        return Err(CouchbaseLiteError::ErrorInBatch(error));
+        Err(CouchbaseLiteError::ErrorInBatch(error))
+    }
+
+    /// Executes an operation as a "batch", similar to a transaction. The operation function can return a result.
+    pub fn in_batch_with_result<T>(&self, unit: &dyn Fn() -> Result<T, CouchbaseLiteError>) -> Result<T, CouchbaseLiteError> {
+        let mut error = init_error();
+        let status = unsafe { ffi::CBLDatabase_BeginBatch(self.db, &mut error) };
+        if error.code == 0 && status {
+            let result = (unit)();
+            let status = unsafe { ffi::CBLDatabase_EndBatch(self.db, &mut error) };
+            if error.code == 0 && status {
+                return result;
+            }
+        }
+        Err(CouchbaseLiteError::ErrorInBatch(error))
     }
 
     pub fn close(&self) -> Result<(), CouchbaseLiteError> {
         let mut error = init_error();
         let status = unsafe { ffi::CBLDatabase_Close(self.db, &mut error) };
         if error.code == 0 && status {
+            self.open.set(false);
             Ok(())
         } else {
             Err(CouchbaseLiteError::CannotCloseDatabase(error))
+        }
+    }
+
+    /// Deletes the (opened) database. After the database is deleted, the database object (self) is closed.
+    pub fn delete(&self) -> Result<(), CouchbaseLiteError> {
+        let mut error = init_error();
+        let status = unsafe { ffi::CBLDatabase_Delete(self.db, &mut error) };
+        if error.code == 0 && status {
+            self.open.set(false);
+            Ok(())
+        } else {
+            Err(CouchbaseLiteError::CannotDeleteDatabase(error))
         }
     }
 }
 
 impl Drop for Database {
     fn drop(&mut self) {
-        unsafe { ffi::CBL_Release( mem::transmute::<*mut ffi::CBLDatabase, *mut ffi::CBLRefCounted>(self.db)) };
+        if self.open.get() {
+            let _ = self.close();
+            self.open.set(false);
+        }
+        unsafe { ffi::CBL_Release(self.db as *mut ffi::CBLRefCounted) };
     }
 }
 
@@ -184,9 +243,6 @@ mod tests {
     use crate::Document;
     use serde::{Deserialize, Serialize};
     use std::fs;
-    use std::path::Path;
-    use std::thread;
-    use std::time::Duration;
     use std::time::Instant;
     use uuid::Uuid;
 
@@ -225,7 +281,7 @@ mod tests {
     fn save_empty_document() {
         let database = open_database();
         let doc_id = String::from("foo");
-        let doc = Document::new(doc_id.clone());
+        let doc = Document::new(doc_id);
         let saved = database.save_document(doc);
         assert_eq!(true, saved.is_err());
     }
@@ -298,7 +354,7 @@ mod tests {
         let database = open_database();
         let doc_id = String::from("foo");
         let doc = Document::new(doc_id.clone());
-        doc.fill(serde_json::to_string_pretty(&person).unwrap());
+        doc.fill(serde_json::to_string_pretty(&person).unwrap()).unwrap();
         assert_eq!("{\"first_name\":\"James\",\"last_name\":\"Bomb\"}", doc.jsonify());
 
         let saved = database.save_document(doc);
@@ -326,7 +382,7 @@ mod tests {
             assert_eq!("{\"prop1\":\"val1\"}", saved.jsonify());
 
             saved.set_value(String::from("val2"), String::from("prop1"));
-            database.save_document(saved);
+            database.save_document(saved).unwrap();
         }
         {
             let doc = database.get_document(doc_id.clone());
@@ -362,7 +418,7 @@ mod tests {
                 let doc = doc.unwrap();
                 // Add new property
                 doc.set_value(String::from("val2"), String::from("prop2"));
-                database.save_document(doc);
+                database.save_document(doc).unwrap();
             }
             {
                 // Verify Document
@@ -373,7 +429,7 @@ mod tests {
                 assert_eq!(2, doc.sequence());
                 assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\"}", doc.jsonify());
             }
-        });
+        }).unwrap();
     }
 
     #[test]
@@ -400,7 +456,7 @@ mod tests {
                 prop4: None,
             };
             //doc.set_value(String::from("val1"), String::from("prop1"));
-            doc.fill(serde_json::to_string_pretty(&data).unwrap());
+            doc.fill(serde_json::to_string_pretty(&data).unwrap()).unwrap();
             assert_eq!("{\"prop1\":\"val1\"}", doc.jsonify());
             let saved = database.save_document(doc);
             assert_eq!(true, saved.is_ok());
@@ -423,7 +479,7 @@ mod tests {
                     prop3: None,
                     prop4: None,
                 };
-                doc.fill(serde_json::to_string_pretty(&data).unwrap());
+                doc.fill(serde_json::to_string_pretty(&data).unwrap()).unwrap();
                 //doc.set_value(String::from("val2"), String::from("prop2"));
                 let saved = database.save_document(doc);
                 assert_eq!(true, saved.is_ok());
@@ -433,7 +489,7 @@ mod tests {
                 assert_eq!(doc_id, doc.id());
                 assert_eq!(2, doc.sequence());
                 assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\"}", doc.jsonify());
-            });
+            }).unwrap();
         }
         {
             // Second Update
@@ -449,7 +505,7 @@ mod tests {
                     prop3: Some("val3".to_string()),
                     prop4: None,
                 };
-                doc.fill(serde_json::to_string_pretty(&data).unwrap());
+                doc.fill(serde_json::to_string_pretty(&data).unwrap()).unwrap();
                 //doc.set_value(String::from("val3"), String::from("prop3"));
                 assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\",\"prop3\":\"val3\"}", doc.jsonify());
                 let saved = database.save_document(doc);
@@ -460,7 +516,7 @@ mod tests {
                 assert_eq!(doc_id, doc.id());
                 assert_eq!(3, doc.sequence());
                 assert_eq!("{\"prop1\":\"val1\",\"prop2\":\"val2\",\"prop3\":\"val3\"}", doc.jsonify());
-            });
+            }).unwrap();
         }
         {
             // Second Update
@@ -476,7 +532,7 @@ mod tests {
                     prop3: Some("val3".to_string()),
                     prop4: Some("val4".to_string()),
                 };
-                doc.fill(serde_json::to_string_pretty(&data).unwrap());
+                doc.fill(serde_json::to_string_pretty(&data).unwrap()).unwrap();
                 //doc.set_value(String::from("val4"), String::from("prop4"));
                 assert_eq!(
                     "{\"prop1\":\"val1\",\"prop2\":\"val2\",\"prop3\":\"val3\",\"prop4\":\"val4\"}",
@@ -493,7 +549,7 @@ mod tests {
                     "{\"prop1\":\"val1\",\"prop2\":\"val2\",\"prop3\":\"val3\",\"prop4\":\"val4\"}",
                     doc.jsonify()
                 );
-            });
+            }).unwrap();
         }
     }
 
@@ -518,7 +574,7 @@ mod tests {
             assert!(deleted.unwrap());
         }
         {
-            let document = database.get_document(doc_id.clone());
+            let document = database.get_document(doc_id);
             assert!(document.is_none());
         }
     }
@@ -536,7 +592,7 @@ mod tests {
             let database = Database::open(test_dir.clone(), &database_name).unwrap();
             let doc = Document::new(doc_id.clone());
             let data = Struct1 { prop1: "val1".to_string() };
-            doc.fill(serde_json::to_string_pretty(&data).unwrap());
+            doc.fill(serde_json::to_string_pretty(&data).unwrap()).unwrap();
             let saved = database.save_document(doc);
             assert_eq!(true, saved.is_ok());
             let saved = saved.unwrap();
@@ -554,8 +610,8 @@ mod tests {
             database.close().unwrap();
         }
         {
-            let database = Database::open(test_dir.clone(), &database_name).unwrap();
-            let document = database.get_document(doc_id.clone());
+            let database = Database::open(test_dir, &database_name).unwrap();
+            let document = database.get_document(doc_id);
             assert!(document.is_none());
             database.close().unwrap();
         }
@@ -577,7 +633,7 @@ mod tests {
         }
         {
             let document = database.get_document(doc_id.clone()).unwrap();
-            assert_eq!(doc_id.clone(), document.id());
+            assert_eq!(doc_id, document.id());
         }
     }
 
@@ -585,7 +641,7 @@ mod tests {
     fn get_inexisting_document() {
         let database = open_database();
         let doc_id = String::from("inexisting");
-        let document = database.get_document(doc_id.clone());
+        let document = database.get_document(doc_id);
         assert!(document.is_none());
     }
 
