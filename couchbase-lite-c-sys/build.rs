@@ -112,13 +112,16 @@ fn main_windows() {
 }
 
 fn main() {
-    if cfg!(target_vendor = "apple") {
-        main_apple();
-    } else if cfg!(target_os = "linux") {
-        main_linux();
-    } else if cfg!(target_os = "android") {
-        main_android();
-    } else if cfg!(target_os = "windows") {
-        main_windows();
+    let target = env::var("TARGET").unwrap();
+    if !target.contains("windows") {
+        if cfg!(target_vendor = "apple") {
+            main_apple();
+        } else if cfg!(target_os = "linux") {
+            main_linux();
+        } else if cfg!(target_os = "android") {
+            main_android();
+        } else if cfg!(target_os = "windows") {
+            main_windows();
+        }
     }
 }
