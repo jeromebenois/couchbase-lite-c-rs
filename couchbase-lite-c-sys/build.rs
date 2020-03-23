@@ -8,37 +8,37 @@ use std::process::Command;
 
 fn bindgen_common() -> bindgen::Builder {
     bindgen::Builder::default()
-    .header("src/bindings.h")
-    .generate_comments(true)
-    .use_core()
-    //.ctypes_prefix("libc")
-    .whitelist_function("CBLDatabase_.*")
-    .whitelist_function("CBLDocument_.*")
-    .whitelist_function("CBL_Release")
-    .whitelist_function("CBLQuery_.*")
-    .whitelist_function("CBLResultSet_.*")
-    .whitelist_function("FLValue_GetType")
-    .whitelist_function("FLValue_AsString")
-    .whitelist_function("FLValue_ToJSON")
-    .whitelist_function("FLDict_Get")
-    .whitelist_function("FLDict_IsEmpty")
-    .whitelist_function("FLMutableDict_Set")
-    .whitelist_function("FLDict_AsMutable")
-    .whitelist_function("FLSlot_SetString")
-    .whitelist_function("FLSlot_SetNull")
-    .whitelist_function("FLSlot_SetData")
-    .whitelist_function("FLSlot_SetValue")
-    .whitelist_function("FLSlot_SetBool")
-    .whitelist_function("FLSlot_SetInt")
-    .whitelist_function("FLStr")
-    .whitelist_function("CBLEndpoint_NewWithURL")
-    .whitelist_function("CBLEndpoint_Free")
-    .whitelist_function("CBLBlob_.*")
-    .whitelist_function("CBLReplicator_.*")
-    .whitelist_function("CBLAuth_.*")
-    .prepend_enum_name(false)
-    .clang_arg("-I./libCouchbaseLiteC/vendor/couchbase-lite-core/vendor/fleece/API/")
-    .clang_arg("-I./libCouchbaseLiteC/include/cbl")
+        .header("src/bindings.h")
+        .generate_comments(true)
+        .use_core()
+        //.ctypes_prefix("libc")
+        .whitelist_function("CBLDatabase_.*")
+        .whitelist_function("CBLDocument_.*")
+        .whitelist_function("CBL_Release")
+        .whitelist_function("CBLQuery_.*")
+        .whitelist_function("CBLResultSet_.*")
+        .whitelist_function("FLValue_GetType")
+        .whitelist_function("FLValue_AsString")
+        .whitelist_function("FLValue_ToJSON")
+        .whitelist_function("FLDict_Get")
+        .whitelist_function("FLDict_IsEmpty")
+        .whitelist_function("FLMutableDict_Set")
+        .whitelist_function("FLDict_AsMutable")
+        .whitelist_function("FLSlot_SetString")
+        .whitelist_function("FLSlot_SetNull")
+        .whitelist_function("FLSlot_SetData")
+        .whitelist_function("FLSlot_SetValue")
+        .whitelist_function("FLSlot_SetBool")
+        .whitelist_function("FLSlot_SetInt")
+        .whitelist_function("FLStr")
+        .whitelist_function("CBLEndpoint_NewWithURL")
+        .whitelist_function("CBLEndpoint_Free")
+        .whitelist_function("CBLBlob_.*")
+        .whitelist_function("CBLReplicator_.*")
+        .whitelist_function("CBLAuth_.*")
+        .prepend_enum_name(false)
+        .clang_arg("-I./libCouchbaseLiteC/vendor/couchbase-lite-core/vendor/fleece/API/")
+        .clang_arg("-I./libCouchbaseLiteC/include/cbl")
 }
 
 fn main_apple() {
@@ -53,11 +53,7 @@ fn main_apple() {
         .output()
         .expect("failed to create symbolink link to CoreFoundation Framework");
 
-
-    let bindings = bindgen_common()
-        .clang_arg("-I/tmp/MacOS-SDK-include")
-        .generate()
-        .expect("Unable to generate bindings");
+    let bindings = bindgen_common().clang_arg("-I/tmp/MacOS-SDK-include").generate().expect("Unable to generate bindings");
 
     let out_path = PathBuf::from("src");
     bindings.write_to_file(out_path.join("bindings.rs")).expect("Couldn't write bindings!");
@@ -73,10 +69,7 @@ fn main_apple() {
 }
 
 fn main_linux() {
-
-    let bindings = bindgen_common()
-        .generate()
-        .expect("Unable to generate bindings");
+    let bindings = bindgen_common().generate().expect("Unable to generate bindings");
 
     let out_path = PathBuf::from("src");
     bindings.write_to_file(out_path.join("bindings.rs")).expect("Couldn't write bindings!");
@@ -94,9 +87,7 @@ fn main_android() {
 }
 
 fn main_windows() {
-    let bindings = bindgen_common()
-        .generate()
-        .expect("Unable to generate bindings");
+    let bindings = bindgen_common().generate().expect("Unable to generate bindings");
 
     let out_path = PathBuf::from("src");
     bindings.write_to_file(out_path.join("bindings.rs")).expect("Couldn't write bindings!");
@@ -113,7 +104,7 @@ fn main_windows() {
 
 fn main() {
     let target = env::var("TARGET").unwrap();
-    if !target.contains("windows") {
+    if !target.contains("windows") && !target.contains("android") {
         if cfg!(target_vendor = "apple") {
             main_apple();
         } else if cfg!(target_os = "linux") {
